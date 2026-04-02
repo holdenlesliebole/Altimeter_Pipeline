@@ -1,0 +1,9 @@
+# Pipeline outputs (large .mat files and PNGs)
+processed/
+
+# MATLAB autosave and temp files
+*.asv
+*.m~
+
+# Mac system files
+.DS_Store
