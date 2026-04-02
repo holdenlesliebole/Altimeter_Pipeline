@@ -1,5 +1,9 @@
 # Pipeline outputs (large .mat files and PNGs)
 processed/
+outputs/
+
+# Local cache of raw server files
+raw_cache/
 
 # MATLAB autosave and temp files
 *.asv
