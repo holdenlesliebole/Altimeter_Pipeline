@@ -57,5 +57,5 @@ Eall.backscatter = Eall.backscatter(order,:);
 save(cfg.output_mat, "TTa", "Eall", "qfEcho", "-v7.3");
 
 % --- Plot ---
-depth_from_sensor_m = linspace(0, 2, size(Eall.backscatter,2))';
+depth_from_sensor_m = (0:size(Eall.backscatter,2)-1)' * 0.0075;
 plot_altimeter_echosounder(TTa, Eall, depth_from_sensor_m);

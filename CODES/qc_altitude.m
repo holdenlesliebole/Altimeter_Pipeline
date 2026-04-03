@@ -1,47 +1,59 @@
 function [x_mm, qf] = qc_altitude(x_mm, t, params)
-%QC_ALTITUDE Basic despiking/QC for altitude time series.
+%QC_ALTITUDE  Despike and QC an altitude time series.
+%
+% Two despiking methods available:
+%   "phasespace" (default) — Goring & Nikora (2002) phase-space threshold,
+%       parameter-free. Uses the data's own phase-space structure to identify
+%       spikes. Recommended for research use.
+%   "movmean" — legacy 2-pass moving-mean + jump filter with hand-tuned
+%       thresholds. Preserved for backward compatibility.
 %
 % Inputs
 %   x_mm   : altitude in mm (distance from sensor to bed)
 %   t      : datetime vector (same length as x_mm)
-%   params : struct with fields (all optional):
-%       .removeZeros (default true)
-%       .maxValid_mm (default inf)
-%       .minValid_mm (default -inf)
-%       .winMovMean  (default minutes(15))
-%       .thr1_mm     (default 200)
-%       .thr2_mm     (default 100)
-%       .jump_mm     (default 10)
-%       .useHampel   (default false)
-%       .hampelWin   (default minutes(15))
-%       .hampelSigma (default 3)
+%
+% Optional name-value parameters:
+%   method       : "phasespace" (default) or "movmean"
+%   removeZeros  : true (default) — NaN out zero-altitude readings
+%   maxValid_mm  : inf  — upper range limit
+%   minValid_mm  : -inf — lower range limit
+%   useHampel    : false — optional post-despike Hampel filter
+%   hampelWin    : minutes(15)
+%   hampelSigma  : 3
+%   (movmean-only parameters:)
+%   winMovMean   : minutes(15)
+%   thr1_mm      : 200
+%   thr2_mm      : 100
+%   jump_mm      : 10
 %
 % Outputs
-%   x_mm : cleaned altitude (NaNs inserted)
+%   x_mm : cleaned altitude (NaNs at flagged samples)
 %   qf   : quality flag bitmask (uint16):
 %       bit1 = removed (zero/invalid range)
-%       bit2 = movmean despike
-%       bit3 = jump/neighbor spike
-%       bit4 = hampel
+%       bit2 = despike (phase-space or moving-mean)
+%       bit3 = jump filter (movmean method only)
+%       bit4 = Hampel
 
 arguments
     x_mm (:,1) double
     t (:,1) datetime
+    params.method (1,1) string = "phasespace"
     params.removeZeros (1,1) logical = true
     params.maxValid_mm (1,1) double = inf
     params.minValid_mm (1,1) double = -inf
+    params.useHampel (1,1) logical = false
+    params.hampelWin = minutes(15)
+    params.hampelSigma (1,1) double = 3
+    % movmean-only params (ignored when method = "phasespace")
     params.winMovMean = minutes(15)
     params.thr1_mm (1,1) double = 200
     params.thr2_mm (1,1) double = 100
     params.jump_mm (1,1) double = 10
-    params.useHampel (1,1) logical = false
-    params.hampelWin = minutes(15)
-    params.hampelSigma (1,1) double = 3
 end
 
 qf = zeros(size(x_mm), "uint16");
 
-% bit1: invalid/zero
+%% bit1: invalid/zero removal
 bad = false(size(x_mm));
 if params.removeZeros
     bad = bad | (x_mm == 0);
@@ -50,37 +62,63 @@ bad = bad | (x_mm < params.minValid_mm) | (x_mm > params.maxValid_mm) | isnan(x_
 qf(bad) = bitor(qf(bad), uint16(1));
 x_mm(bad) = NaN;
 
-% Determine sampling interval and convert duration windows to samples
-dt = median(seconds(diff(t)), "omitnan");
-if ~isfinite(dt) || dt <= 0
-    % Fall back to 2 Hz assumption
-    dt = 0.5;
+%% bit2 (+bit3): despiking
+if params.method == "phasespace"
+    % Goring & Nikora (2002) phase-space threshold method.
+    % Requires contiguous (non-NaN) segments. Process each segment separately.
+    nanMask = isnan(x_mm);
+    if ~all(nanMask)
+        % Fill NaN gaps with linear interpolation for phase-space analysis,
+        % then re-apply NaN mask afterward
+        x_interp = x_mm;
+        nanIdx = find(nanMask);
+        goodIdx = find(~nanMask);
+        if numel(goodIdx) >= 2
+            x_interp(nanIdx) = interp1(goodIdx, x_mm(goodIdx), nanIdx, 'linear', 'extrap');
+        end
+
+        [~, spikeIdx] = func_despike_phasespace3d(x_interp, 0, 0);
+
+        % Only flag spikes at samples that were originally valid (not already NaN)
+        spikeIdx = spikeIdx(~nanMask(spikeIdx));
+        x_mm(spikeIdx) = NaN;
+        qf(spikeIdx) = bitor(qf(spikeIdx), uint16(2));
+    end
+
+elseif params.method == "movmean"
+    % Legacy 2-pass moving-mean + jump filter
+    dt = median(seconds(diff(t)), "omitnan");
+    if ~isfinite(dt) || dt <= 0, dt = 0.5; end
+    win1 = max(3, round(seconds(params.winMovMean) / dt));
+
+    % bit2: moving-mean despike (two-pass)
+    m1 = movmean(x_mm, win1, "omitnan");
+    sp1 = abs(x_mm - m1) > params.thr1_mm;
+    x_mm(sp1) = NaN;
+    qf(sp1) = bitor(qf(sp1), uint16(2));
+
+    m2 = movmean(x_mm, win1, "omitnan");
+    sp2 = abs(x_mm - m2) > params.thr2_mm;
+    x_mm(sp2) = NaN;
+    qf(sp2) = bitor(qf(sp2), uint16(2));
+
+    % bit3: jump filter
+    d1 = [0; abs(diff(x_mm))];
+    d2 = [abs(diff(x_mm)); 0];
+    spJump = (d1 > params.jump_mm) | (d2 > params.jump_mm);
+    x_mm(spJump) = NaN;
+    qf(spJump) = bitor(qf(spJump), uint16(4));
+
+else
+    error("qc_altitude: unknown method '%s'. Use 'phasespace' or 'movmean'.", params.method);
 end
-win1 = max(3, round(seconds(params.winMovMean) / dt));
 
-% bit2: moving-mean despike (two-pass like your scripts)
-m1 = movmean(x_mm, win1, "omitnan");
-sp1 = abs(x_mm - m1) > params.thr1_mm;
-x_mm(sp1) = NaN;
-qf(sp1) = bitor(qf(sp1), uint16(2));
-
-m2 = movmean(x_mm, win1, "omitnan");
-sp2 = abs(x_mm - m2) > params.thr2_mm;
-x_mm(sp2) = NaN;
-qf(sp2) = bitor(qf(sp2), uint16(2));
-
-% bit3: jump filter (vectorized version of neighbor loop)
-d1 = [0; abs(diff(x_mm))];
-d2 = [abs(diff(x_mm)); 0];
-spJump = (d1 > params.jump_mm) | (d2 > params.jump_mm);
-x_mm(spJump) = NaN;
-qf(spJump) = bitor(qf(spJump), uint16(4));
-
-% bit4: optional Hampel (robust to spikes)
+%% bit4: optional Hampel (robust post-filter)
 if params.useHampel
+    dt = median(seconds(diff(t)), "omitnan");
+    if ~isfinite(dt) || dt <= 0, dt = 0.5; end
     winH = max(3, round(seconds(params.hampelWin) / dt));
-    [x2, isOut] = hampel(x_mm, winH, params.hampelSigma);
-    % hampel replaces outliers; we want to NaN them so the caller can decide
+    [~, isOut] = hampel(x_mm, winH, params.hampelSigma);
     x_mm(isOut) = NaN;
     qf(isOut) = bitor(qf(isOut), uint16(8));
 end
