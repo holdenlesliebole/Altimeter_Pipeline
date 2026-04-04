@@ -43,9 +43,25 @@ nCols = numel(colNames);
 fmt = ['%s', repmat(' %f', 1, nCols - 1)];
 
 %% -- Read data with textscan (fast) --------------------------------------
-% fid is already positioned right after the header line
-C = textscan(fid, fmt, 'Delimiter', ',', 'CollectOutput', false, ...
-    'EmptyValue', NaN);
+% fid is already positioned right after the header line.
+% RangeLogger files in burst mode append "N:XX Interval: XXXX" to the last
+% sample of each burst, which breaks textscan. We read in a loop: textscan
+% stops at each bad line, we skip it, then resume.
+C = cell(1, nCols);
+for k = 1:nCols, C{k} = []; end
+
+while ~feof(fid)
+    Ck = textscan(fid, fmt, 'Delimiter', ',', 'CollectOutput', false, ...
+        'EmptyValue', NaN);
+    if isempty(Ck{1}), fgetl(fid); continue; end  % skip bad line, advance
+    for k = 1:nCols
+        C{k} = [C{k}; Ck{k}];
+    end
+    % Skip the line that caused textscan to stop (burst summary or junk)
+    if ~feof(fid)
+        fgetl(fid);
+    end
+end
 
 if isempty(C{1})
     error("read_rangelogger_log: No data rows found in %s", filepath);
