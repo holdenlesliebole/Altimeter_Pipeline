@@ -4,6 +4,7 @@ function cfg = SOL24_config()
     cfg.outputDir   = fullfile(fileparts(mfilename('fullpath')), '..', 'outputs');
     cfg.site        = 'SolanaBeach';
     cfg.mop         = 'MOP654';
+    cfg.latlon      = [32.99064, -117.27897];
 
     k = 0;
 

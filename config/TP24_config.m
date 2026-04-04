@@ -4,6 +4,7 @@ function cfg = TP24_config()
     cfg.outputDir   = fullfile(fileparts(mfilename('fullpath')), '..', 'outputs');
     cfg.site        = 'TorreyPines';
     cfg.mop         = 'MOP586';
+    % Instrument positions vary by depth — stored per deployment below
 
     k = 0;
 

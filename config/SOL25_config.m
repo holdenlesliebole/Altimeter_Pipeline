@@ -4,6 +4,7 @@ function cfg = SOL25_config()
     cfg.outputDir   = fullfile(fileparts(mfilename('fullpath')), '..', 'outputs');
     cfg.site        = 'SolanaBeach';
     cfg.mop         = 'MOP654';
+    cfg.latlon      = [32.99064, -117.27897];  % MOP654 7m instrument position
 
     k = 0;
 
