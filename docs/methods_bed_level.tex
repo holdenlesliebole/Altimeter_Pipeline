@@ -1,0 +1,234 @@
+% Altimeter Pipeline — Bed Level Measurement Methods Section
+% Drop into your paper's methods section. Adjust \subsection depth as needed.
+% Requires: amsmath, siunitx (optional, for units), natbib or biblatex
+
+\subsection{Bed level measurements}
+
+\subsubsection{Instrumentation}
+
+Bed level change was measured using bottom-mounted acoustic instruments
+manufactured by Echologger (EofE Ultrasonics Co., Ltd), deployed on
+vertical pipes with the transducer facing downward toward the seabed.
+Two instrument types were used:
+
+\begin{itemize}
+  \item \textbf{AA400 altimeter}: A \SI{450}{\kilo\hertz} autonomous
+    acoustic altimeter that measures the distance from the sensor to the
+    nearest acoustically reflective surface (the seabed). The instrument
+    records altitude, temperature, battery voltage, and acoustic return
+    amplitude at \SI{2}{\hertz}. Data are stored as ASCII CSV files on
+    internal flash memory, with deployment durations limited to
+    approximately 30~days by memory capacity.
+
+  \item \textbf{EA400 echosounder}: A \SI{450}{\kilo\hertz} autonomous
+    precision echosounder that measures both the distance to the seabed
+    and a full acoustic backscatter intensity profile through the water
+    column. The backscatter profile is resolved into depth bins of
+    \SI{7.5}{\milli\meter} spacing over a \SIrange{2}{3}{\meter} range,
+    with the number of bins varying by instrument configuration (272 or
+    400~bins). The instrument additionally records pitch, roll, and
+    temperature. Data are stored in a proprietary binary format (.BIN)
+    on SD card, with deployment durations limited to approximately
+    30~days by battery capacity. The binary file format was
+    reverse-engineered for this study (Appendix~\ref{app:bin_format}).
+\end{itemize}
+
+\subsubsection{Deployment configuration}
+
+Instruments were deployed at three sites along the San Diego County
+coastline: south of the SIO pier on MOP~511 at \SI{6}{\meter} depth,
+along MOP~586 at Torrey Pines State Beach at \SI{5}{\meter},
+\SI{7}{\meter}, \SI{10}{\meter}, and \SI{15}{\meter} depths, and at
+Solana Beach on MOP~654 at \SI{7}{\meter} depth.
+
+At the SIO~pier site, both an AA400 altimeter and EA400 echosounder
+were co-deployed and swapped monthly. At Torrey Pines, AA400 altimeters
+were deployed from February--August 2024 and were subsequently replaced
+by EA400 echosounders at the \SI{5}{\meter}, \SI{7}{\meter}, and
+\SI{10}{\meter} locations, while the \SI{10}{\meter} and
+\SI{15}{\meter} locations retained AA400 altimeters from November 2024
+onward. At Solana Beach, only EA400 echosounders were deployed.
+
+The AA400 altimeters sampled in burst mode, recording 60--1800 samples
+(30~seconds to 15~minutes) at \SI{2}{\hertz} every 20--30~minutes,
+depending on site and deployment period. The EA400 echosounders
+sampled similarly in burst mode, typically recording 300~samples
+(2.5~minutes) at \SI{2}{\hertz} every 30~minutes.
+
+Most altimeter and echosounder deployments were co-located with Nortek
+Vector ADVs configured in pressure--velocity (PUV) mode, providing
+simultaneous measurements of wave height, period, direction, orbital
+velocity, and bed shear stress.
+
+\subsection{Level 1: Data reading and concatenation}
+
+\subsubsection{AA400 altimeter}
+
+Raw AA400 data were read from Nortek RangeLogger ASCII log files. Each
+file contains a device configuration header (instrument settings,
+serial number, sampling parameters) followed by comma-delimited data
+rows with timestamp, ping count, altitude, temperature, battery
+voltage, and acoustic return amplitude. A burst summary line appended
+to the last sample of each burst (containing sample count and interval
+metadata) was detected and excluded during parsing. Non-data lines
+(device shutdown messages) at the end of the file were filtered by
+rejecting rows whose first character was non-numeric.
+
+\subsubsection{EA400 echosounder}
+
+Raw EA400 binary (.BIN) files were read using a custom parser
+developed for this study. Each file consists of a 128-byte header
+containing instrument configuration (sound speed, timer settings)
+followed by repeating records, one per ping. Each record contains a
+64-byte DATA sub-record (ping number, Unix timestamp, and the
+backscatter intensity profile as $N$ unsigned 16-bit integers, where
+$N$ is the number of depth bins), followed by a 64-byte STAT
+sub-record containing the authoritative per-ping metadata:
+temperature (\si{\celsius}), altitude (\si{\meter}), pitch
+(\si{\degree}), and roll (\si{\degree}). The full file was read into
+memory as a byte vector and reshaped into a record matrix for
+vectorized extraction of all fields, enabling efficient processing
+of files exceeding \SI{500}{\mega\byte}.
+
+Multiple files spanning a single deployment were concatenated and
+sorted chronologically.
+
+\subsection{Level 2: Quality control}
+
+\subsubsection{Despiking}
+
+Acoustic altimeter data contain impulsive spikes caused by
+intermittent acoustic interference, biological targets (fish, kelp),
+and multipath reflections. Spikes were identified and removed using
+the phase-space threshold method of \citet{goring2002}, as modified
+by \citet{mori2005}. This method constructs an ellipsoid in the
+three-dimensional phase space defined by the signal $x$, its first
+derivative $dx/dt$, and second derivative $d^2x/dt^2$. The ellipsoid
+semi-axes are set to $\lambda \sigma$ for each dimension, where
+$\sigma$ is the standard deviation and $\lambda = \sqrt{2 \ln N}$ is
+the Universal threshold. Points lying outside the ellipsoid are
+classified as spikes and replaced with NaN. The algorithm iterates
+(up to 20 iterations) until no additional spikes are detected. This
+approach is parameter-free (the threshold derives from the data
+itself) and has been widely validated for acoustic Doppler velocimeter
+data \citep{goring2002}.
+
+Prior to phase-space despiking, zero-altitude readings (indicating no
+acoustic return) were flagged and set to NaN. Quality flags were
+stored as a uint16 bitmask: bit~1 for invalid/zero values, bit~2 for
+phase-space spikes.
+
+\subsubsection{Echosounder tilt masking}
+
+For EA400 echosounder deployments, the pitch and roll sensors were
+used to identify periods when the instrument was disturbed (e.g., by
+wave loading on kelp-fouled pipes). Rather than masking based on
+absolute tilt---which would reject all data from instruments installed
+with a static offset from vertical---the tilt mask flags deviations
+from the baseline (deployment median) pitch and roll. Pings where
+$|\theta_\text{pitch} - \tilde{\theta}_\text{pitch}| > \SI{2}{\degree}$
+or
+$|\theta_\text{roll} - \tilde{\theta}_\text{roll}| > \SI{2}{\degree}$
+were flagged, and both altitude and backscatter data at those
+timestamps were set to NaN. This deviation-based approach preserves
+data from instruments with static tilt offsets up to
+\SI{13}{\degree} (observed at the Solana Beach site).
+
+\subsubsection{Backscatter masking}
+
+The echosounder backscatter profile extends from the sensor face to
+its maximum configured range (\SIrange{2}{3}{\meter}). Acoustic
+returns from depth bins beyond the detected seabed represent
+sub-surface reflections and are not physically meaningful for water
+column analysis. For each ping, all backscatter bins at ranges
+exceeding the detected altitude were set to NaN. Pings with no
+detected bed echo (altitude = 0 or NaN) had their entire backscatter
+profile set to NaN, as the absence of a bed return indicates
+unreliable acoustic conditions for the full profile.
+
+\subsection{Level 3: Derived products}
+
+\subsubsection{Burst-averaged bed level}
+
+The 2~Hz altitude time series was reduced to burst-averaged bed level
+change matched to the temporal resolution of the co-located PUV wave
+measurements. The burst structure was auto-detected from the time
+series: instruments with time gaps exceeding \SI{10}{\second} between
+consecutive samples (indicating burst-mode acquisition) were processed
+using the physical burst boundaries, while continuously sampled
+instruments were divided into non-overlapping 2048-sample
+(\SI{17.1}{\minute}) windows matching the PUV spectral segment length.
+
+For each burst window, the \emph{median} altitude was computed,
+providing a measure robust to both wave-frequency apparent bed
+oscillations (caused by orbital motion modulating the acoustic path
+length) and any remaining undetected spikes. The interquartile range
+(IQR) of altitude within each burst was recorded as an estimate of
+measurement uncertainty, encompassing both wave-orbital contamination
+and acoustic noise. Bursts with fewer than 50\% valid (non-NaN)
+samples were rejected.
+
+Bed level change was computed as:
+%
+\begin{equation}
+  \Delta z(t_k) = -(\ \tilde{a}_k - \tilde{a}_0\ )
+\end{equation}
+%
+where $\tilde{a}_k$ is the burst-median altitude at time $t_k$ and
+$\tilde{a}_0$ is the median altitude of the first fully valid burst.
+The sign convention is: accretion (bed moving upward, reducing the
+sensor-to-bed distance) is positive; erosion is negative.
+
+\subsubsection{Bed level change rate}
+
+The bed level change rate between consecutive bursts was computed as:
+%
+\begin{equation}
+  \frac{d(\Delta z)}{dt}\bigg|_{k} =
+  \frac{\Delta z(t_k) - \Delta z(t_{k-1})}{t_k - t_{k-1}}
+\end{equation}
+%
+expressed in \si{\milli\meter\per\hour}. Rates computed across time
+gaps exceeding three times the median burst interval were set to NaN
+to avoid spurious values across data outages.
+
+\subsubsection{Burst-averaged backscatter}
+
+For EA400 echosounder deployments, the backscatter profile was
+averaged over each burst window to produce burst-mean and burst-maximum
+profiles. The burst-maximum profile captures peak suspension events
+within each averaging window and is useful for identifying
+wave-group-driven sediment mobilization.
+
+\subsection{Validation}
+
+The pipeline was validated across five representative deployments
+spanning all three sites and both instrument types
+(Table~\ref{tab:alt_validation}):
+
+\begin{enumerate}
+  \item SIO pier AA400 altimeter (continuous mode, 6m): 257~bursts of
+    $\sim$1800 samples, median IQR = \SI{4.6}{\milli\meter}.
+  \item SIO pier AA400 altimeter (burst mode, 6m): 1531~bursts of
+    $\sim$300 samples, median IQR = \SI{5.1}{\milli\meter}.
+  \item Torrey Pines EA400 echosounder (10m): 1719~bursts, median
+    IQR = \SI{7.2}{\milli\meter}, 4\% rejected.
+  \item Torrey Pines AA400 altimeter (burst mode, 10m): 6883~bursts
+    of $\sim$60 samples, median IQR = \SI{3.8}{\milli\meter}.
+  \item Solana Beach EA400 echosounder (7m, tilted pipe): 2600~bursts,
+    19\% rejected by tilt deviation mask, median
+    IQR = \SI{7.3}{\milli\meter}.
+\end{enumerate}
+
+The AA400 altimeters consistently exhibited lower within-burst IQR
+(\SIrange{3.8}{5.1}{\milli\meter}) compared to the EA400 echosounders
+(\SIrange{7.2}{7.3}{\milli\meter}), reflecting the simpler measurement
+geometry and more focused acoustic beam of the dedicated altimeter.
+The percent of valid samples within accepted bursts exceeded 88\%
+across all deployments. The Solana Beach deployment demonstrated
+that the deviation-based tilt mask correctly preserves data from a
+tilted instrument (baseline tilt \SI{13.2}{\degree}) while rejecting
+periods of transient disturbance.
+
+% TODO: Insert Table \ref{tab:alt_validation} with deployment summary
+% statistics (N_bursts, N_rejected, BL_range, IQR_med, pctValid)

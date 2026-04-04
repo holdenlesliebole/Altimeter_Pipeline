@@ -1,0 +1,100 @@
+% Appendix: EA400 Binary File Format Specification
+% Reference for the reverse-engineered .BIN format.
+
+\appendix
+\section{EA400 echosounder binary file format}
+\label{app:bin_format}
+
+The Echologger EA400 echosounder stores data in a proprietary binary
+format (.BIN) for which no public documentation or parsing tools exist
+from the manufacturer. The file format was reverse-engineered from hex
+analysis of instrument files across three deployment sites, verified
+against concurrent ASCII text (.log) outputs for the same deployments.
+
+\subsection{File structure}
+
+Each .BIN file consists of a 128-byte file header followed by a
+sequence of fixed-size records, one per acoustic ping. The record size
+depends on the configured number of depth bins $N$:
+$R = 64 + 2N + 64$~bytes.
+
+\subsection{File header (128 bytes)}
+
+\begin{tabular}{llll}
+\hline
+Offset & Type & Field & Notes \\
+\hline
+0x00 & uint32 LE & header\_size & Always 128 \\
+0x08 & char[24] & timer\_name & ``Default timer'' \\
+0x3C & float32 LE & sample\_interval\_s & Typically 0.5 \\
+0x58 & float32 LE & sound\_speed\_mps & Typically 1500 \\
+\hline
+\end{tabular}
+
+\subsection{Data record}
+
+Each record contains two sub-records:
+
+\subsubsection{DATA sub-record (64 + 2N bytes)}
+
+\begin{tabular}{llll}
+\hline
+Offset & Type & Field & Notes \\
+\hline
++0 & char[4] & marker & ``DATA'' (0x44415441) \\
++4 & uint16 LE & version & 0x0101 \\
++6 & uint16 LE & padding & \\
++8 & uint32 LE & ping\_number & 1-indexed \\
++12 & uint16 LE & num\_samples & $N$ (272 or 400) \\
++14 & uint16 LE & padding & \\
++16 & uint32 LE & timestamp & Unix epoch seconds$^*$ \\
++20 & uint32 LE & subsecond & Internal counter \\
++24--63 & mixed & prev\_metadata & Echo of previous STAT; ignore \\
++64 & uint16[$N$] LE & backscatter & 0--1023 per depth bin \\
+\hline
+\end{tabular}
+
+$^*$The timestamp represents instrument local time encoded as Unix
+epoch seconds (i.e., the local date/time is treated as if it were UTC
+when computing the epoch value). A timezone offset must be applied
+during post-processing.
+
+\subsubsection{STAT sub-record (64 bytes)}
+
+The STAT sub-record contains the authoritative per-ping metadata.
+Values in the DATA sub-record header (positions +24--63) are echoes
+of the \emph{previous} ping's STAT and should not be used.
+
+\begin{tabular}{llll}
+\hline
+Offset & Type & Field & Units \\
+\hline
++0 & uint16 LE & marker & 0x0102 \\
++2 & uint16 LE & padding & \\
++4 & uint32 LE & ping\_number & \\
++8 & uint32 LE & num\_samples & \\
++12 & float32 LE & temperature & \si{\celsius} \\
++16 & float32 LE & battery\_V & \si{\volt} (tentative) \\
++20 & float32 LE & altitude & \si{\meter} (0 = no echo) \\
++24 & float32 LE & pitch & \si{\degree} \\
++28 & float32 LE & roll & \si{\degree} \\
++32--63 & zero & reserved & \\
+\hline
+\end{tabular}
+
+\subsection{Observed configurations}
+
+\begin{tabular}{lccc}
+\hline
+Site & $N$ (depth bins) & Record size & Bin spacing \\
+\hline
+SouthSIOPier (MOP511) & 272 & 672 bytes & \SI{7.5}{\milli\meter} \\
+TorreyPines (MOP586) & 400 & 928 bytes & \SI{7.5}{\milli\meter} \\
+SolanaBeach (MOP654) & 272 & 672 bytes & \SI{7.5}{\milli\meter} \\
+\hline
+\end{tabular}
+
+Typical file sizes range from \SI{70}{\mega\byte} (short test
+deployments, $\sim$100 pings) to \SI{525}{\mega\byte} (full
+deployments, $\sim$780{,}000 pings at \SI{2}{\hertz} burst sampling).
+All multi-byte values are little-endian.
