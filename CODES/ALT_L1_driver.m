@@ -34,11 +34,7 @@ if isfolder(localCache)
 end
 
 % QC parameters
-cfg.qcParams.winMovMean = minutes(15);
-cfg.qcParams.thr1_mm    = 200;
-cfg.qcParams.thr2_mm    = 100;
-cfg.qcParams.jump_mm    = 10;
-cfg.qcParams.useHampel  = false;
+cfg.qcParams.maxValid_mm = 5000;  % reject altitudes > 5m (catches firmware Error-3 values)
 
 cfg.savePlots = true;
 cfg.overwrite = false;
