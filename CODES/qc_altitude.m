@@ -65,24 +65,53 @@ x_mm(bad) = NaN;
 %% bit2 (+bit3): despiking
 if params.method == "phasespace"
     % Goring & Nikora (2002) phase-space threshold method.
-    % Requires contiguous (non-NaN) segments. Process each segment separately.
-    nanMask = isnan(x_mm);
-    if ~all(nanMask)
-        % Fill NaN gaps with linear interpolation for phase-space analysis,
-        % then re-apply NaN mask afterward
-        x_interp = x_mm;
-        nanIdx = find(nanMask);
-        goodIdx = find(~nanMask);
-        if numel(goodIdx) >= 2
-            x_interp(nanIdx) = interp1(goodIdx, x_mm(goodIdx), nanIdx, 'linear', 'extrap');
+    % For burst-mode data (gaps > 10 sec), apply despike to each burst
+    % independently to avoid artifacts from interpolating across gaps.
+    dt_s = seconds(diff(t));
+    gapIdx = find(dt_s > 10);
+
+    if numel(gapIdx) > 5
+        % Burst mode: despike each burst separately
+        burstStarts = [1; gapIdx + 1];
+        burstEnds   = [gapIdx; numel(x_mm)];
+        nSpikes = 0;
+        for b = 1:numel(burstStarts)
+            bIdx = burstStarts(b):burstEnds(b);
+            seg = x_mm(bIdx);
+            nValid = sum(~isnan(seg));
+            if nValid < 10, continue; end  % too few samples for phase-space
+
+            % Interpolate NaN within this burst only
+            nanM = isnan(seg);
+            if any(nanM) && ~all(nanM)
+                gd = find(~nanM);
+                seg(nanM) = interp1(gd, seg(gd), find(nanM), 'linear', 'extrap');
+            end
+
+            [~, sp] = func_despike_phasespace3d(seg, 0, 0);
+            % Only flag originally valid samples
+            origValid = ~isnan(x_mm(bIdx));
+            sp = sp(origValid(sp));
+            x_mm(bIdx(sp)) = NaN;
+            qf(bIdx(sp)) = bitor(qf(bIdx(sp)), uint16(2));
+            nSpikes = nSpikes + numel(sp);
         end
+    else
+        % Continuous mode: despike the full time series
+        nanMask = isnan(x_mm);
+        if ~all(nanMask)
+            x_interp = x_mm;
+            nanIdx = find(nanMask);
+            goodIdx = find(~nanMask);
+            if numel(goodIdx) >= 2
+                x_interp(nanIdx) = interp1(goodIdx, x_mm(goodIdx), nanIdx, 'linear', 'extrap');
+            end
 
-        [~, spikeIdx] = func_despike_phasespace3d(x_interp, 0, 0);
-
-        % Only flag spikes at samples that were originally valid (not already NaN)
-        spikeIdx = spikeIdx(~nanMask(spikeIdx));
-        x_mm(spikeIdx) = NaN;
-        qf(spikeIdx) = bitor(qf(spikeIdx), uint16(2));
+            [~, spikeIdx] = func_despike_phasespace3d(x_interp, 0, 0);
+            spikeIdx = spikeIdx(~nanMask(spikeIdx));
+            x_mm(spikeIdx) = NaN;
+            qf(spikeIdx) = bitor(qf(spikeIdx), uint16(2));
+        end
     end
 
 elseif params.method == "movmean"
