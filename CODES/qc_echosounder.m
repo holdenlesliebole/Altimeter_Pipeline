@@ -9,29 +9,51 @@ function [E, qf] = qc_echosounder(E, params)
 %   "tilt_deg"           (default 2)      deviation from median pitch/roll to flag
 %   "altitudeParams"     (default struct)  passed to qc_altitude
 %   "rangeResolution_m"  (default 0.0075)  depth bin spacing for below-bed mask
+%   "correctTilt"        (default true)    apply geometric tilt correction to altitude
+%
+% Tilt correction:
+%   A tilted sensor overestimates the distance to bed by a factor of
+%   1/cos(tilt). For a 13 deg tilt, this is ~2.6% (~24 mm at 900 mm
+%   altitude). The correction uses the per-ping total tilt angle:
+%     altitude_corrected = altitude_measured * cos(totalTilt)
+%   This is a constant offset for stable tilt, so it does NOT affect
+%   relative bed level change (Δz). It matters for absolute elevation
+%   comparisons against surveys.
 %
 % Outputs:
-%   E  : struct with altitude_mm and backscatter NaN'd where flagged
+%   E  : struct with altitude_mm corrected and masked, backscatter masked
 %   qf : struct with fields:
 %          qf_altitude (uint16 bitmask from qc_altitude)
 %          maskTilt    (logical, true = flagged by tilt deviation)
-%          pitch_baseline_deg (median pitch)
-%          roll_baseline_deg  (median roll)
+%          pitch_baseline_deg, roll_baseline_deg (median tilt)
+%          tilt_correction_mm (median correction applied, for reference)
 
 arguments
     E (1,1) struct
     params.tilt_deg (1,1) double = 2
     params.altitudeParams = struct()
     params.rangeResolution_m (1,1) double = 0.0075
+    params.correctTilt (1,1) logical = true
 end
 
 % Altitude QC (despike, zeros, jumps)
 altNV = namedargs2cell(params.altitudeParams);
 [E.altitude_mm, qf_alt] = qc_altitude(E.altitude_mm, E.time, altNV{:});
 
-% Tilt QC: mask deviations from baseline (median) pitch and roll
+% Geometric tilt correction: altitude_true = altitude_measured * cos(tilt)
 pitch_baseline = median(E.pitch_deg, "omitnan");
 roll_baseline  = median(E.roll_deg,  "omitnan");
+totalTilt_deg  = sqrt(E.pitch_deg.^2 + E.roll_deg.^2);
+tilt_correction_mm = 0;
+
+if params.correctTilt
+    cosFactor = cos(deg2rad(totalTilt_deg));
+    medianCorr = median(E.altitude_mm .* (1 - cosFactor), "omitnan");
+    E.altitude_mm = E.altitude_mm .* cosFactor;
+    tilt_correction_mm = medianCorr;
+end
+
+% Tilt QC: mask deviations from baseline (median) pitch and roll
 
 pitch_dev = abs(E.pitch_deg - pitch_baseline);
 roll_dev  = abs(E.roll_deg  - roll_baseline);
@@ -64,11 +86,17 @@ qf.qf_altitude = qf_alt;
 qf.maskTilt = maskTilt;
 qf.pitch_baseline_deg = pitch_baseline;
 qf.roll_baseline_deg  = roll_baseline;
+qf.tilt_correction_mm = tilt_correction_mm;
 
-% Report baseline tilt if significant
-totalTilt = sqrt(pitch_baseline^2 + roll_baseline^2);
-if totalTilt > 2
-    fprintf('  QC: baseline tilt = %.1f deg (pitch=%.1f, roll=%.1f) — masking deviations > %.1f deg\n', ...
-        totalTilt, pitch_baseline, roll_baseline, params.tilt_deg);
+% Report baseline tilt
+baselineTilt = sqrt(pitch_baseline^2 + roll_baseline^2);
+if baselineTilt > 2
+    if params.correctTilt
+        fprintf('  QC: baseline tilt = %.1f deg (pitch=%.1f, roll=%.1f) — corrected (%.1f mm), masking deviations > %.1f deg\n', ...
+            baselineTilt, pitch_baseline, roll_baseline, tilt_correction_mm, params.tilt_deg);
+    else
+        fprintf('  QC: baseline tilt = %.1f deg (pitch=%.1f, roll=%.1f) — NOT corrected, masking deviations > %.1f deg\n', ...
+            baselineTilt, pitch_baseline, roll_baseline, params.tilt_deg);
+    end
 end
 end

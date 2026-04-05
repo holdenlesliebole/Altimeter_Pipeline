@@ -118,14 +118,36 @@ acoustic return) were flagged and set to NaN. Quality flags were
 stored as a uint16 bitmask: bit~1 for invalid/zero values, bit~2 for
 phase-space spikes.
 
-\subsubsection{Echosounder tilt masking}
+\subsubsection{Echosounder tilt correction and masking}
 
-For EA400 echosounder deployments, the pitch and roll sensors were
-used to identify periods when the instrument was disturbed (e.g., by
-wave loading on kelp-fouled pipes). Rather than masking based on
-absolute tilt---which would reject all data from instruments installed
-with a static offset from vertical---the tilt mask flags deviations
-from the baseline (deployment median) pitch and roll. Pings where
+For EA400 echosounder deployments, a geometric tilt correction was
+applied to account for the overestimation of distance-to-bed caused
+by non-vertical beam orientation. A sensor tilted by angle $\alpha$
+from vertical measures an acoustic path length $r = d / \cos\alpha$,
+where $d$ is the true vertical distance. The per-ping total tilt angle
+was computed as $\alpha = \sqrt{\theta_\text{pitch}^2 +
+\theta_\text{roll}^2}$, and the corrected altitude was obtained as:
+%
+\begin{equation}
+  a_\text{corrected} = a_\text{measured} \cos\alpha
+\end{equation}
+%
+For the Solana Beach deployment (baseline tilt
+$\alpha = \SI{13.2}{\degree}$), the correction reduced the measured
+altitude by \SI{24}{\milli\meter} at the median range of
+\SI{910}{\milli\meter} (a 2.6\% correction). For instruments with
+baseline tilt $< \SI{2}{\degree}$ (Torrey Pines, SIO pier), the
+correction is $< \SI{1}{\milli\meter}$ and effectively negligible.
+Because the tilt is stable over time, the correction is a constant
+offset and does not affect relative bed level change $\Delta z$; it
+is relevant only for absolute elevation comparisons.
+
+The pitch and roll sensors were also used to identify periods when
+the instrument was disturbed (e.g., by wave loading on kelp-fouled
+pipes). Rather than masking based on absolute tilt---which would
+reject all data from instruments installed with a static offset from
+vertical---the tilt mask flags deviations from the baseline
+(deployment median) pitch and roll. Pings where
 $|\theta_\text{pitch} - \tilde{\theta}_\text{pitch}| > \SI{2}{\degree}$
 or
 $|\theta_\text{roll} - \tilde{\theta}_\text{roll}| > \SI{2}{\degree}$
@@ -229,6 +251,42 @@ across all deployments. The Solana Beach deployment demonstrated
 that the deviation-based tilt mask correctly preserves data from a
 tilted instrument (baseline tilt \SI{13.2}{\degree}) while rejecting
 periods of transient disturbance.
+
+\subsubsection{Independent validation against beach surveys}
+
+Echosounder bed level measurements were independently validated
+against beach morphology surveys conducted by the Scripps Coastal
+Processes Group. Subaqueous profiles were obtained at approximately
+monthly intervals using a jetski-mounted RTK GPS system, reaching
+water depths of \SIrange{8}{11}{\meter} NAVD88 at MOP~654 (Solana
+Beach). Survey profiles were interpolated to the instrument cross-shore
+position (identified by converting the instrument latitude/longitude
+to the MOP coordinate system) to extract the surveyed bed elevation
+at each survey date. The bed level \emph{change} between consecutive
+survey pairs ($\Delta z_\text{survey}$) was compared against the
+corresponding altimeter-measured change ($\Delta z_\text{echo}$)
+over the same interval.
+
+For the Solana Beach EA400 echosounder at \SI{7}{\meter} depth over
+the period March--June 2025, four jetski GPS surveys reached the
+instrument depth, yielding two paired $\Delta z$ comparisons. The
+RMSE of the residual ($\Delta z_\text{echo} - \Delta z_\text{survey}$)
+was \SI{22}{\milli\meter} with a bias of \SI{-4}{\milli\meter}. The
+echosounder correctly captured the sign and approximate magnitude
+of bed level changes observed in the surveys.
+
+The \SI{22}{\milli\meter} RMSE is comparable to the spatial variability
+inherent in the survey comparison itself: survey-to-survey elevation
+changes at MOP~654 had a standard deviation of \SI{21}{\milli\meter},
+and the neighboring MOP~655 transect (\SI{100}{\meter} alongshore)
+showed \SI{37}{\milli\meter} standard deviation at the same
+cross-shore position. This spatial aliasing arises because the jetski
+survey line does not pass directly over the instrument, and bedforms
+(ripples, megaripples) cause centimeter-scale elevation variability
+over meter-scale horizontal distances. The validation RMSE is therefore
+at the noise floor of the survey comparison, indicating that the
+echosounder accuracy is at least as good as can be resolved by the
+available ground truth.
 
 % TODO: Insert Table \ref{tab:alt_validation} with deployment summary
 % statistics (N_bursts, N_rejected, BL_range, IQR_med, pctValid)
