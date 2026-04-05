@@ -33,6 +33,7 @@ arguments
     opts.burstSamples (1,1) double = 2048
     opts.minPctValid (1,1) double = 50
     opts.gapThreshold_s (1,1) double = 10
+    opts.maxIQR_mm (1,1) double = inf  % reject bursts with IQR above this
 end
 
 N = numel(alt_mm);
@@ -97,6 +98,34 @@ lowValid = burstPctVal < opts.minPctValid;
 burstAlt(lowValid) = NaN;
 burstIQR(lowValid) = NaN;
 
+% Reject high-IQR bursts (within-burst scatter too large to trust the median)
+if opts.maxIQR_mm < inf
+    highIQR = burstIQR > opts.maxIQR_mm;
+    burstAlt(highIQR) = NaN;
+    burstIQR(highIQR) = NaN;
+    nHighIQR = sum(highIQR);
+else
+    nHighIQR = 0;
+end
+
+% Phase-space despike on the burst-averaged altitude time series.
+% This catches entire corrupted bursts (firmware errors, acoustic
+% artifacts) that survived the per-ping despike. Run iteratively
+% until no more spikes are found (the function's internal 20-iteration
+% limit may not be enough for heavily corrupted records).
+nBurstSpikes = 0;
+for pass = 1:5
+    validBA = find(~isnan(burstAlt));
+    if numel(validBA) < 20, break; end
+    seg = burstAlt(validBA);
+    [~, sp] = func_despike_phasespace3d(seg, 0, 0);
+    if isempty(sp), break; end
+    burstAlt(validBA(sp)) = NaN;
+    burstIQR(validBA(sp)) = NaN;
+    nBurstSpikes = nBurstSpikes + numel(sp);
+    if numel(sp) < 5, break; end  % converged
+end
+
 %% -- Bed level relative to first valid burst ------------------------------
 firstValid = find(~isnan(burstAlt), 1, 'first');
 if ~isempty(firstValid)
@@ -118,8 +147,8 @@ if nBursts > 1
 end
 
 nRejected = sum(lowValid);
-fprintf('  %d rejected (<%d%% valid), %d with valid bed level\n', ...
-    nRejected, opts.minPctValid, sum(~isnan(bedlevel)));
+fprintf('  %d rejected low-valid, %d high-IQR, %d burst-level spikes, %d final valid\n', ...
+    nRejected, nHighIQR, nBurstSpikes, sum(~isnan(bedlevel)));
 
 %% -- Build output ---------------------------------------------------------
 BA.time            = burstTime;
