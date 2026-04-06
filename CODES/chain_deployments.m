@@ -42,6 +42,7 @@ arguments
     opts.instrumentLon (1,1) double = NaN
     opts.smFilePath (1,1) string = "/Volumes/group/MOPS/"
     opts.maxSurveyDelta_hr (1,1) double = 48
+    opts.sensorElev_m (1,1) double = NaN  % known sensor elevation (NAVD88) for sequential+absolute
 end
 
 %% -- Load all L3 files for this site, organized by deployment time --------
@@ -214,9 +215,13 @@ for d = 1:nDep
 
     bl = -(baseline - globalBaseline);
 
-    % Absolute elevation (survey method only)
+    % Absolute elevation
     if hasAbsolute
+        % Survey-anchored: elev = -(alt/1000) + offset/1000
         elev = -(BA.altitude_mm / 1000) + offsets_mm(d) / 1000;
+    elseif ~isnan(opts.sensorElev_m)
+        % Known sensor elevation: bed_elev = sensor_elev - alt/1000
+        elev = opts.sensorElev_m - BA.altitude_mm / 1000;
     else
         elev = nan(n, 1);
     end
