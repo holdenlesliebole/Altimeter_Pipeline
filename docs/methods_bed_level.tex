@@ -318,5 +318,45 @@ at the noise floor of the survey comparison, indicating that the
 echosounder accuracy is at least as good as can be resolved by the
 available ground truth.
 
+\subsubsection{Cross-deployment baseline anchoring}
+
+Consecutive instrument deployments at the same location produce
+independent relative bed level records, each with an arbitrary
+baseline at the first valid burst. Two methods were used to create
+continuous time series across deployment boundaries:
+
+\paragraph{Survey anchoring.} For sites with subaqueous survey
+coverage (Torrey Pines, Solana Beach), each deployment was shifted
+to match the NAVD88 elevation measured by the nearest jetski GPS
+survey. The per-deployment offset was computed from:
+%
+\begin{equation}
+  z_\text{offset} = z_\text{survey} + a_\text{match} / 1000
+\end{equation}
+%
+where $z_\text{survey}$ is the survey elevation (m~NAVD88) at the
+instrument's cross-shore position and $a_\text{match}$ is the
+burst-median altitude (mm) at the time nearest the survey.
+Deployments without a direct survey match ($> \SI{48}{\hour}$) were
+interpolated from neighboring deployments. At Torrey Pines MOP~586,
+survey-anchored records at \SI{7}{\meter}, \SI{10}{\meter}, and
+\SI{15}{\meter} depth showed good agreement with independent survey
+elevations throughout the record. The \SI{5}{\meter} location showed
+discrepancies of $\sim \SI{0.7}{\meter}$ during April 2024, coinciding
+with a period of firmware data corruption. At Solana Beach, physical
+relocation of the echosounder pipe during maintenance (re-jetting)
+introduced spatial offsets between deployments that the survey
+anchoring could not fully reconcile.
+
+\paragraph{Sequential anchoring.} For SIO~pier (no surveys available),
+consecutive deployments were chained by matching the last valid burst
+of deployment $N$ to the first valid burst of deployment $N{+}1$.
+This is valid because instrument swaps occurred on the same dive day,
+with the pipe mount point unchanged. Sequential offsets were typically
+$< \SI{30}{\milli\meter}$, confirming the physical consistency of the
+mount across swaps. The absolute bed elevation was computed from the
+known sensor height above the bed at installation
+($z_\text{sensor} = \SI{-4.96}{\meter}$~NAVD88).
+
 % TODO: Insert Table \ref{tab:alt_validation} with deployment summary
 % statistics (N_bursts, N_rejected, BL_range, IQR_med, pctValid)

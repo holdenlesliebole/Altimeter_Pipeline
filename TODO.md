@@ -25,6 +25,23 @@
 - [ ] **Storm event case studies** — Dec 28 2023 (TP 5m accretion, Solana pipe damage), Dec 22 2024 (all sites affected).
 - [ ] **Seasonal morphological cycle** — SIO 2-year record shows clear seasonal erosion/accretion. Quantify amplitude, timing, depth dependence.
 
+## Longer-term (Paper 3): Interpolated seabed reconstruction
+
+- [ ] **Merged survey + instrument interpolant** — combine periodic survey profiles with continuous altimeter/echosounder records into a best-estimate time-varying seabed surface. Instrument data provides temporal resolution; surveys provide spatial context and absolute elevation ground truth.
+- [ ] **Quality-weighted fusion** — use burst IQR, pctValid, and firmware flags as uncertainty weights so corrupted periods (e.g., TP 5m Apr 2024) receive less weight than clean data. Survey points serve as hard constraints.
+- [ ] **Gap filling approaches** (increasing sophistication):
+  - Simple convolution / temporal interpolation between survey + instrument anchors
+  - Equilibrium profile model driven by PUV wave data + sediment budget
+  - ML approaches for full profile prediction from forcing + boundary conditions
+- [ ] **Design note**: Keep instrument records and survey elevations as independent data sources — do NOT force-align instruments to surveys in the pipeline. The anchoring in `chain_deployments.m` is for visualization; for modeling, preserve both sources with their native uncertainties.
+
+## Site-specific validation notes
+
+- **SIO Pier (MOP511 6m)**: Sequential anchoring works well (<30mm offsets). 2-year continuous record. No survey validation possible (permit restrictions).
+- **Torrey Pines 7m/10m/15m**: Survey-anchored records show good agreement. 10m is the cleanest site (~150mm total range). 15m very stable, no surveys reach that depth.
+- **Torrey Pines 5m**: Good except April 2024 (~700mm discrepancy) — firmware Error-3 corruption period. Don't force-align; let uncertainty metadata propagate.
+- **Solana Beach 7m**: Pipe physically relocated during re-jetting, so cross-deployment survey anchoring has spatial aliasing. Within-deployment validation is good (RMSE=22mm). Between deployments, treat as independent records.
+
 ## Ruled out
 
 - [x] **SSC from echosounder backscatter** — tested, no detectable correlation between water column backscatter and wave energy (energetic/calm ratio = 1.00). The 450 kHz EA400 backscatter is useful for bed detection and qualitative visualization only, not quantitative sediment concentration.
