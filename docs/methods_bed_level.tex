@@ -114,9 +114,19 @@ itself) and has been widely validated for acoustic Doppler velocimeter
 data \citep{goring2002}.
 
 Prior to phase-space despiking, zero-altitude readings (indicating no
-acoustic return) were flagged and set to NaN. Quality flags were
+acoustic return) and values exceeding \SI{5}{\meter} (catching firmware
+Error-3 artefacts) were flagged and set to NaN. Quality flags were
 stored as a uint16 bitmask: bit~1 for invalid/zero values, bit~2 for
 phase-space spikes.
+
+For instruments operating in burst mode (e.g., 60~samples at
+\SI{2}{\hertz} every 20~minutes), the phase-space despike was applied
+to each physical burst independently rather than to the full time
+series with interpolated inter-burst gaps. Burst boundaries were
+auto-detected from time gaps exceeding \SI{10}{\second}. This prevents
+artefacts from interpolating across the \SIrange{10}{20}{\minute}
+gaps between bursts, which the phase-space algorithm would otherwise
+misidentify as spikes or real transitions.
 
 \subsubsection{Echosounder tilt correction and masking}
 
@@ -190,6 +200,17 @@ measurement uncertainty, encompassing both wave-orbital contamination
 and acoustic noise. Bursts with fewer than 50\% valid (non-NaN)
 samples were rejected.
 
+A second phase-space despike was then applied to the burst-median
+altitude time series itself, run iteratively (up to 5~passes) until
+convergence. This catches entire corrupted bursts---caused by firmware
+errors, acoustic interference, or biological targets---that survived
+the per-ping despike because the burst median was biased by corrupted
+samples. For the most heavily affected deployment (Torrey Pines 5m,
+where firmware Error-3 messages corrupted $\sim$30\% of bursts),
+the burst-level despike removed 1472~additional spikes across 5~passes,
+preserving the underlying morphological signal including a
+\SI{600}{\milli\meter} storm accretion event.
+
 Bed level change was computed as:
 %
 \begin{equation}
@@ -199,7 +220,10 @@ Bed level change was computed as:
 where $\tilde{a}_k$ is the burst-median altitude at time $t_k$ and
 $\tilde{a}_0$ is the median altitude of the first fully valid burst.
 The sign convention is: accretion (bed moving upward, reducing the
-sensor-to-bed distance) is positive; erosion is negative.
+sensor-to-bed distance) is positive; erosion is negative. This
+convention correctly describes storm-driven offshore sand deposition
+as accretion at the subaqueous measurement point, even when the same
+storm causes erosion of the subaerial beach.
 
 \subsubsection{Bed level change rate}
 
@@ -218,9 +242,15 @@ to avoid spurious values across data outages.
 
 For EA400 echosounder deployments, the backscatter profile was
 averaged over each burst window to produce burst-mean and burst-maximum
-profiles. The burst-maximum profile captures peak suspension events
-within each averaging window and is useful for identifying
-wave-group-driven sediment mobilization.
+profiles. The feasibility of inverting the acoustic backscatter for
+suspended sediment concentration (SSC) was assessed by comparing
+water column backscatter intensity during calm and energetic conditions
+(classified by $|d\Delta z/dt|$). No detectable correlation was found:
+the ratio of energetic to calm backscatter in the water column
+($0$--$\SI{0.3}{\meter}$ from sensor) was $1.00 \pm 0.01$ for both
+burst-mean and burst-maximum profiles. The \SI{450}{\kilo\hertz}
+EA400 backscatter is therefore used only for bed detection and
+qualitative visualization, not for quantitative SSC estimation.
 
 \subsection{Validation}
 
