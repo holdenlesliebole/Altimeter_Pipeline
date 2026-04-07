@@ -297,11 +297,21 @@ if opts.mopStation ~= "" && exist('read_MOPline2', 'file')
     try
         tStart = C.time(1) - days(1);
         tEnd   = C.time(end) + days(1);
-        MOP = read_MOPline2(char(opts.mopStation), datenum(tStart), datenum(tEnd));
+        MOP = read_MOPline2(char(opts.mopStation), tStart, tEnd);
         if ~isempty(MOP) && isfield(MOP, 'time')
-            mopTime = datetime(MOP.time, 'ConvertFrom', 'datenum');
+            if isdatetime(MOP.time)
+                mopTime = MOP.time;
+            else
+                mopTime = datetime(MOP.time, 'ConvertFrom', 'datenum');
+            end
             mopHs = double(MOP.Hs);
-            mopTp = 1 ./ double(MOP.fp);
+            if isfield(MOP, 'fp')
+                mopTp = 1 ./ double(MOP.fp);
+            elseif isfield(MOP, 'Tp')
+                mopTp = double(MOP.Tp);
+            else
+                mopTp = nan(size(mopHs));
+            end
             % Interpolate hourly MOP to burst timestamps
             L4.mop_Hs = interp1(mopTime, mopHs, C.time, 'linear', NaN);
             L4.mop_Tp = interp1(mopTime, mopTp, C.time, 'linear', NaN);
