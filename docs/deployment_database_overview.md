@@ -106,6 +106,7 @@ Monthly swaps, continuous 2 Hz or burst-mode sampling. Sequential baseline ancho
 
 | Site | Surveys at depth | Within-deployment RMSE | Notes |
 |---|---|---|---|
+| SIO Pier 6m (MOP511) | 14 | — | Survey-anchored (10/23 deployments directly anchored). Note: LatLon2MopxshoreX maps to MOP513; must override to MOP511. |
 | Torrey Pines 10m | 9 | 61 mm | Best-validated depth |
 | Solana Beach 7m | 27 | 22 mm (within deployment) | Pipe relocation inflates cross-deployment RMSE |
 | Torrey Pines 5m | 11 | Poor in Apr 2024 (firmware) | Good elsewhere |

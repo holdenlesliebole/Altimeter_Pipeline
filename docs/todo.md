@@ -14,12 +14,14 @@
 
 ## Validation
 
-- [ ] **Run `run_survey_validation.m` on full processed dataset** — currently only tested on SOL25 (4 surveys, 2 pairs, RMSE=22mm). Should also validate TP25 at multiple depths where surveys reach.
-- [ ] **Cross-instrument validation at SIO** — SIO has co-deployed altimeter + echosounder. Compare their bed level time series for consistency (requires processing SIO echosounder data — blocked by .log reader speed).
+- [x] **Run `run_survey_validation.m` on full processed dataset** — DONE. SOL 7m (27 surveys, RMSE=92mm cross-dep), TP 5m (11 surveys), TP 10m (9 surveys, RMSE=61mm).
+- [x] **SIO survey validation** — DONE. Found 14 jetski GPS surveys at MOP 511 reaching -11.5m. SIO now uses survey anchoring (mopNumber=511 override, since auto-detection maps to MOP513).
+- [ ] **Cross-instrument validation at SIO** — SIO has co-deployed altimeter + echosounder. Blocked by .log reader speed.
+- [ ] **Fix SIO bed level y-axis** — survey anchoring may have shifted baseline; diagnostic plot shows -4000 to 0 mm range. Investigate offset interpolation for early deployments without survey matches.
 
 ## Science analysis
 
-- [x] **PUV correlation (L4)** — DONE. `build_L4_site.m` + `run_L4.m` build merged products for SIO 6m (8190 matched bursts), TP 5/10/15m. Diagnostic plots generated.
+- [x] **PUV correlation (L4)** — DONE. `build_L4_site.m` + `run_L4.m` build merged products for SIO 6m (8190 PUV matched), TP 5/10/15m. MOP Hs gap-fills to 100% coverage at all sites.
 - [ ] **Initiation of motion thresholds** — correlate dz/dt onset with bed shear stress tau_b to find critical Shields parameter at each depth. SIO shows all bursts mobilized at 6m; TP 10m/15m should show threshold behavior.
 - [ ] **Transport rate relationships** — test 8 functional forms from reconciled plan. SIO binned |dz/dt| vs Ub already shows clear increasing trend (4→10 mm/hr). Fit power law, compare across depths.
 - [ ] **Storm event case studies** — Dec 28 2023 (TP 5m +700mm accretion), Dec 22 2024 (all sites affected). Use L4 for simultaneous wave forcing + bed response.

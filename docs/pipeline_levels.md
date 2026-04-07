@@ -126,11 +126,25 @@ operates on the QC'd altitude without any additional averaging or modeling.
 % Context
 .tidal_depth, .storm_flag, .Ef_swell, .Ef_sea
 
+% MOP wave data (continuous, fills PUV gaps)
+.mop_Hs, .mop_Tp              % hourly MOP model data interpolated to burst timestamps
+.Hs_combined, .Hs_source      % PUV where available, MOP for gap-fill; source = "PUV"|"MOP"
+
 % Quality
 .puv_match_min, .puv_valid, .alt_quality
 ```
 
-**Status:** Prototype working on SIO24A (131 matched bursts). Full-site products to be built.
+### MOP gap-filling
+Continuous hourly wave data from the CDIP MOP spectral model is loaded
+via `read_MOPline2` and interpolated to burst timestamps. This fills
+all PUV gaps with modeled Hs/Tp, giving 100% wave forcing coverage.
+`Hs_source` tracks provenance per burst ("PUV" or "MOP").
+
+**Status:** Complete. Full-site products built for SIO 6m, TP 5/10/15m.
+- SIO: 8190 PUV + 25424 MOP = 100% coverage
+- TP 5m: 5560 PUV + 27998 MOP = 100%
+- TP 10m: 9031 PUV + 18175 MOP = 100%
+- TP 15m: 8352 PUV + 16415 MOP = 100%
 
 ---
 
