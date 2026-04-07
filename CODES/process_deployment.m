@@ -89,9 +89,9 @@ if ~hasAltimeter && ~hasEcho
     return
 end
 
-%% -- Save L1 -------------------------------------------------------------
+%% -- Save L1 (raw data + deployment metadata for provenance) -------------
 outL1 = fullfile(sitePath, dep.DeploymentID + "_L1.mat");
-save(outL1, "TTa", "Eall", "-v7.3");
+save(outL1, "TTa", "Eall", "dep", "-v7.3");
 
 % Keep raw copies for quicklook (QC may NaN everything for tilted instruments)
 if hasAltimeter, TTa_raw = TTa; end
@@ -110,13 +110,9 @@ else
     qfEcho = [];
 end
 
-outL2 = fullfile(sitePath, dep.DeploymentID + "_L2.mat");
-save(outL2, "TTa", "Eall", "qfEcho", "-v7.3");
-
-%% -- L3: Derive bed level ------------------------------------------------
-% Convention (from altitude_to_bedlevel.m):
-%   BedLevel_mm = -(alt - alt_baseline)
-%   -> accretion positive, erosion negative
+%% -- L2: Bed level (coordinate transform on QC'd altitude) ----------------
+% Convention: BedLevel_mm = -(alt - alt_baseline)
+%   accretion positive, erosion negative
 if hasAltimeter
     TTa.BedLevel_mm = altitude_to_bedlevel(TTa.Altitude_mm);
 end
@@ -129,7 +125,10 @@ if hasEcho
     Eraw.bedlevel_mm = altitude_to_bedlevel(Eraw.altitude_mm);
 end
 
-%% -- Burst-averaged products (matched to PUV L2 segment timing) ----------
+outL2 = fullfile(sitePath, dep.DeploymentID + "_L2.mat");
+save(outL2, "TTa", "Eall", "qfEcho", "dep", "-v7.3");
+
+%% -- L3: Burst-averaged products (science-ready) -------------------------
 BA_alt = [];
 BA_echo = [];
 if hasAltimeter
@@ -139,7 +138,7 @@ if hasEcho
     BA_echo = burst_average_echosounder(Eall);
 end
 
-save(outL3, "TTa", "Eall", "BA_alt", "BA_echo", "dep", "-v7.3");
+save(outL3, "BA_alt", "BA_echo", "dep", "-v7.3");
 fprintf("  Saved L1/L2/L3 -> %s\n", sitePath);
 
 %% -- Quicklook ------------------------------------------------------------

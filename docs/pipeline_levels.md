@@ -25,7 +25,7 @@ The pipeline handles two instrument types (AA400 altimeter and EA400 echosounder
 ## L1: Read + Concatenate (COMPLETE)
 
 **Input:** Raw .log or .BIN files
-**Output:** `{DeploymentID}_L1.mat` — raw timetable (altimeter) and/or struct (echosounder)
+**Output:** `{DeploymentID}_L1.mat` — raw timetable (altimeter) and/or struct (echosounder) + deployment metadata (`dep`)
 
 ### AA400 Altimeter
 - Parse CSV with device header skip and burst summary line handling
@@ -45,7 +45,7 @@ Multiple files per deployment are concatenated and sorted chronologically.
 ## L2: Quality Control (COMPLETE)
 
 **Input:** L1 .mat files
-**Output:** `{DeploymentID}_L2.mat` — QC'd data with quality flags
+**Output:** `{DeploymentID}_L2.mat` — QC'd data with quality flags + full-resolution bed level + deployment metadata
 
 ### Shared (both instruments)
 - **Invalid value removal** (bit 1): zeros, out-of-range (>5000 mm for firmware Error-3), NaN
@@ -59,6 +59,12 @@ Multiple files per deployment are concatenated and sorted chronologically.
 - **Tilt deviation mask**: flags pings where |pitch - median_pitch| or |roll - median_roll| > 2°. Preserves data from instruments with static tilt up to 13°.
 - **Below-bed backscatter mask**: NaN all bins at range > altitude. Pings with no echo (altitude = NaN) have entire profile masked.
 
+After QC, full-resolution bed level is computed as a coordinate transform:
+`BedLevel_mm = -(Altitude_mm - baseline)`. This belongs in L2 because it
+operates on the QC'd altitude without any additional averaging or modeling.
+
+**Saved:** `TTa` (timetable with Altitude_mm, QF, BedLevel_mm), `Eall` (struct with altitude_mm, bedlevel_mm, backscatter), `qfEcho`, `dep`
+
 **Status:** Complete. Phase-space despike validated on all instrument types. Two-level despiking (per-ping + burst-level) handles firmware-corrupted records.
 
 ---
@@ -66,7 +72,7 @@ Multiple files per deployment are concatenated and sorted chronologically.
 ## L3: Burst-Averaged Products (COMPLETE)
 
 **Input:** L2 .mat files
-**Output:** `{DeploymentID}_L3.mat` — burst-averaged bed level + backscatter
+**Output:** `{DeploymentID}_L3.mat` — burst-averaged products only (no full-resolution data)
 
 ### Burst averaging
 - **Auto-detects sampling mode**: burst (gaps >10 sec → physical burst boundaries) vs continuous (fixed 2048-sample windows matching PUV L2 segment length)
