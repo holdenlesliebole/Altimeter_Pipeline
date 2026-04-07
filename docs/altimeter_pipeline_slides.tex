@@ -1,0 +1,366 @@
+% Altimeter Pipeline — Beamer Slide Deck
+% Last updated: April 6, 2026
+
+\documentclass[10pt, aspectratio=169]{beamer}
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{siunitx}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\graphicspath{{../outputs/figures/}}
+
+\title{Subaqueous Bed Level Measurement Pipeline}
+\subtitle{AA400 Altimeters \& EA400 Echosounders --- Processing, QC, and Validation}
+\author{Holden Leslie-Bole}
+\institute{Scripps Institution of Oceanography \\ Coastal Processes Group}
+\date{April 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{frame}{Outline}
+  \tableofcontents
+\end{frame}
+
+% ==================================================================
+\section{Overview}
+% ==================================================================
+
+\begin{frame}{Motivation}
+  \begin{itemize}
+    \item Beach morphological change is driven by wave forcing, but direct
+          measurements of bed level change at depth are rare
+    \item Acoustic altimeters/echosounders provide continuous, high-resolution
+          bed level records at subaqueous locations (5--15~m depth)
+    \item Co-located with PUV wave instruments $\rightarrow$ paired forcing
+          and response measurements
+    \item Goal: build a robust, reproducible pipeline from raw instrument
+          data to science-ready bed level products
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Instrument Network}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \begin{itemize}
+        \item \textbf{3 sites}, \textbf{47 deployments}
+        \item South SIO Pier --- MOP 511 (6~m)
+          \begin{itemize}
+            \item AA400 altimeter, 23 monthly swaps
+            \item 2-year continuous record
+          \end{itemize}
+        \item Torrey Pines --- MOP 586 (5, 7, 10, 15~m)
+          \begin{itemize}
+            \item AA400 altimeters + EA400 echosounders
+            \item Cross-shore depth transect
+          \end{itemize}
+        \item Solana Beach --- MOP 654 (7~m)
+          \begin{itemize}
+            \item EA400 echosounder only
+          \end{itemize}
+        \item Deployment period: Nov 2023 -- Mar 2026
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      % \includegraphics[width=\textwidth]{site_map.png}
+      \centering\textit{[Site map to be generated]}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Two Instruments, One Pipeline}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{AA400 Altimeter}
+      \begin{itemize}
+        \item 450 kHz acoustic distance sensor
+        \item Measures altitude (distance to bed) only
+        \item RangeLogger .log format (ASCII CSV)
+        \item Low power, long deployments
+        \item IQR: 3.8--5.1~mm
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{EA400 Echosounder}
+      \begin{itemize}
+        \item 450 kHz precision echosounder
+        \item Altitude + backscatter profile
+        \item .BIN binary format (reverse-engineered)
+        \item Pitch/roll sensors for tilt correction
+        \item IQR: 7.2--7.3~mm
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \vspace{1em}
+  \centering
+  Both manufactured by Echologger (EofE Ultrasonics). \\
+  \textbf{Same altitude QC pipeline} with echosounder-specific extensions.
+\end{frame}
+
+% ==================================================================
+\section{Processing Pipeline}
+% ==================================================================
+
+\begin{frame}{Pipeline Architecture}
+  \begin{enumerate}
+    \item[\textbf{L0}] Raw data on lab server (RangeLogger .log, EA400 .BIN)
+    \item[\textbf{L1}] Read $+$ concatenate $\rightarrow$ raw timetable/struct
+    \item[\textbf{L2}] Quality control:
+      \begin{itemize}
+        \item Phase-space despiking (Goring \& Nikora 2002)
+        \item Tilt correction $+$ deviation masking (echosounder)
+        \item Below-bed backscatter masking
+      \end{itemize}
+    \item[\textbf{L3}] Burst-averaged products:
+      \begin{itemize}
+        \item Burst-median bed level $+$ IQR uncertainty
+        \item Iterative burst-level despike
+        \item Bed level change rate $dz/dt$
+      \end{itemize}
+    \item[\textbf{L4}] PUV-merged products (prototype):
+      \begin{itemize}
+        \item Nearest-neighbor timestamp matching ($\pm$5~min)
+        \item Bed response $+$ wave forcing in one struct
+      \end{itemize}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{L1: Reading Raw Data}
+  \textbf{AA400 RangeLogger .log:}
+  \begin{itemize}
+    \item Variable-length device header, CSV data with burst summary lines
+    \item \texttt{textscan} with loop to skip burst summaries (``N:60 Interval: 1200'')
+    \item Handles both continuous (SIO) and burst-mode (TP) sampling
+  \end{itemize}
+  \vspace{0.5em}
+  \textbf{EA400 .BIN (reverse-engineered):}
+  \begin{itemize}
+    \item 128-byte file header $+$ repeating records
+    \item Each record: DATA header (64~B) $+$ backscatter ($N \times$ uint16) $+$ STAT footer (64~B)
+    \item Vectorized \texttt{reshape} extraction: 500~MB file $\rightarrow$ 30~sec parse time
+    \item No public documentation exists; format specification in \texttt{appendix\_bin\_format.tex}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{L2: Phase-Space Despiking}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \textbf{Goring \& Nikora (2002)}
+      \begin{itemize}
+        \item Parameter-free: threshold from data itself
+        \item 3D phase space: $x$, $dx/dt$, $d^2x/dt^2$
+        \item Ellipsoid fit, iterative outlier removal
+        \item Originally for ADV velocities; works well for altimeter altitude
+      \end{itemize}
+      \vspace{0.5em}
+      \textbf{Two-level approach:}
+      \begin{enumerate}
+        \item Per-ping within each physical burst
+        \item Iterative on burst medians (up to 5 passes)
+      \end{enumerate}
+      Catches both individual spike pings and entire corrupted bursts.
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      % \includegraphics[width=\textwidth]{qc_diagnostic.png}
+      \centering\textit{[QC diagnostic figure]}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{L2: Echosounder Tilt Correction \& Masking}
+  \begin{itemize}
+    \item \textbf{Geometric correction}: $a_\text{corrected} = a_\text{measured} \cos(\alpha)$
+      \begin{itemize}
+        \item Solana Beach: baseline tilt $13.2^\circ$ $\rightarrow$ 24~mm correction at 910~mm
+        \item Constant offset; does not affect relative $\Delta z$
+      \end{itemize}
+    \item \textbf{Tilt deviation mask}: flags pings where tilt deviates $> 2^\circ$ from baseline
+      \begin{itemize}
+        \item Uses median pitch/roll as baseline (not absolute zero)
+        \item Preserves data from tilted instruments while rejecting disturbances
+      \end{itemize}
+    \item \textbf{Below-bed mask}: NaN all backscatter bins at range $>$ altitude
+      \begin{itemize}
+        \item Pings with no bed echo $\rightarrow$ entire profile masked
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{L3: Burst Averaging}
+  \textbf{Auto-detects sampling mode:}
+  \begin{itemize}
+    \item Continuous (SIO): fixed 2048-sample windows (17.1~min, matches PUV)
+    \item Burst mode (TP): physical burst boundaries from time gaps
+  \end{itemize}
+  \vspace{0.5em}
+  \textbf{Per-burst products:}
+  \begin{itemize}
+    \item Burst-median altitude (robust to wave oscillations $+$ remaining spikes)
+    \item IQR (measurement uncertainty: wave contamination $+$ acoustic noise)
+    \item Bed level: $\Delta z = -(a_k - a_0)$, accretion positive
+    \item $dz/dt$ (mm/hr) between consecutive bursts
+  \end{itemize}
+  \vspace{0.5em}
+  \textbf{Iterative burst-level despike:}
+  \begin{itemize}
+    \item Phase-space on burst medians, up to 5 passes
+    \item TP 5m worst case: 1472 corrupted bursts removed, Dec 28 storm preserved
+  \end{itemize}
+\end{frame}
+
+% ==================================================================
+\section{Validation}
+% ==================================================================
+
+\begin{frame}{Cross-Site Validation Results}
+  \begin{table}
+    \small
+    \begin{tabular}{lrrrrr}
+      \toprule
+      Deployment & Bursts & Rejected & BL range & IQR & Valid\% \\
+      \midrule
+      SIO24 altimeter (6m, continuous) & 257 & 34 & 71~mm & 4.6~mm & 97\% \\
+      SIO24 altimeter (6m, burst) & 1531 & 6 & 57~mm & 5.1~mm & 97\% \\
+      TP24 echosounder (10m) & 1719 & 70 & 94~mm & 7.2~mm & 94\% \\
+      TP25 altimeter (10m, burst) & 6883 & 275 & 128~mm & 3.8~mm & 97\% \\
+      SOL25 echosounder (7m, tilted) & 2600 & 490 & 99~mm & 7.3~mm & 88\% \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+  \begin{itemize}
+    \item AA400 altimeters: lower IQR (3.8--5.1~mm) than EA400 echosounders (7.2--7.3~mm)
+    \item Tilted instruments (Solana, $13.2^\circ$): tilt-deviation QC preserves 81\% of data
+    \item Burst-mode instruments: auto-detected and processed correctly
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Survey Validation}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \textbf{Method:} Compare $\Delta z$ between consecutive jetski GPS surveys
+      against instrument $\Delta z$ over same interval.
+      \vspace{0.5em}
+
+      \textbf{Solana Beach (within deployment):}
+      \begin{itemize}
+        \item RMSE = 22~mm, bias = $-$4~mm
+        \item At the noise floor of the survey itself
+        \item Survey spatial variability: $\sigma = 21$~mm (same MOP), $\sigma = 37$~mm (neighboring MOP)
+      \end{itemize}
+      \vspace{0.5em}
+
+      \textbf{Torrey Pines 10m:}
+      \begin{itemize}
+        \item RMSE = 61~mm, bias = 10~mm
+        \item Most surveys track instrument record
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \includegraphics[width=\textwidth]{chained_TP10m_elevation.png}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{Results}
+% ==================================================================
+
+\begin{frame}{SIO Pier — 2-Year Bed Level Record}
+  \includegraphics[width=\textwidth]{chained_SIO_elevation.png}
+  \begin{itemize}
+    \item 23 monthly deployments, sequentially anchored
+    \item Seasonal cycle: $\sim$200~mm amplitude
+    \item Winter accretion event (Jan 2025), summer erosion trend
+    \item Sensor at $-4.96$~m NAVD88 (from deployment notes)
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Torrey Pines — Cross-Shore Depth Transect}
+  \includegraphics[width=\textwidth]{timeseries_TorreyPines.png}
+  \begin{itemize}
+    \item 4 depths: 5, 7, 10, 15~m on MOP 586
+    \item Dec 28, 2023 storm: +700~mm accretion at 5m (offshore sand deposition)
+    \item 10~m: 150~mm total range. 15~m: $\pm$50~mm (below depth of closure)
+    \item Transition from AA400 altimeters to EA400 echosounders in Jul 2024
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Solana Beach — Echosounder with Survey Overlay}
+  \includegraphics[width=\textwidth]{timeseries_SolanaBeach.png}
+  \begin{itemize}
+    \item EA400 echosounder at 7~m depth
+    \item Baseline tilt $13.2^\circ$ (pipe not vertical) — handled by tilt-deviation QC
+    \item Survey markers (red) track instrument record within deployments
+    \item Cross-deployment offsets from pipe re-jetting (spatial relocation)
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Backscatter Hovmüller — Torrey Pines 5m}
+  % \includegraphics[width=\textwidth]{tp5m_backscatter.png}
+  \centering\textit{[Echosounder quicklook from outputs/all/TorreyPines/]}
+  \begin{itemize}
+    \item Below-bed returns masked (white), NaN from QC distinct from valid zeros
+    \item Bed clearly visible as high-intensity band at $\sim$0.5~m from sensor
+    \item Bed migration visible over weeks (accretion $\rightarrow$ range decreases)
+    \item SSC inversion assessed and ruled out (no correlation with wave energy)
+  \end{itemize}
+\end{frame}
+
+% ==================================================================
+\section{L4: PUV Correlation (Prototype)}
+% ==================================================================
+
+\begin{frame}{Merging Bed Level with Wave Forcing}
+  \textbf{L4 = Altimeter L3 + PUV L2/L3}
+  \begin{itemize}
+    \item Nearest-neighbor matching: $\pm$5~min tolerance, median offset 2.5~min
+    \item Altimeter timestamps as backbone (response variable)
+    \item Wave fields: $H_s$, $T_p$, $E_f$, $F_b$, $U_b$, $\tau_b$, Shields, skewness, asymmetry
+  \end{itemize}
+  \vspace{0.5em}
+  \textbf{SIO24A prototype (Apr 2024):}
+  \begin{itemize}
+    \item 131 matched bursts, $H_s$ = 0.55--1.59~m, $\tau_b$ = 0.20--1.84~Pa
+    \item 100\% mobilized at 6~m depth (all bursts above threshold)
+    \item Next: full SIO 2-year record, then TP multi-depth for threshold analysis
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{First Look: $dz/dt$ vs Wave Forcing}
+  \includegraphics[width=0.9\textwidth]{L4_SIO24A_scatter.png}
+  \begin{itemize}
+    \item Symmetric scatter: roughly equal accretion and erosion rates at all stress levels
+    \item No clear threshold visible at 6~m (all bursts mobilized)
+    \item Threshold analysis requires deeper sites (TP 10~m, 15~m)
+    \item 8 transport relationships to test (reconciled plan from both pipelines)
+  \end{itemize}
+\end{frame}
+
+% ==================================================================
+\section{Next Steps}
+% ==================================================================
+
+\begin{frame}{Remaining Work}
+  \begin{enumerate}
+    \item \textbf{Full-site L4 products}: Chain all SIO deployments $\times$ all PUV
+          deployments for 2-year merged record. Same for TP multi-depth.
+    \item \textbf{Transport threshold analysis}: $dz/dt$ vs $\tau_b$ at TP 10~m and 15~m
+          where not all bursts are mobilized.
+    \item \textbf{8 transport relationships}: Excess Shields, bottom energy flux,
+          $|u|^3$, $u|u|^2$, equilibrium, undertow, swell vs sea, cumulative forcing.
+    \item \textbf{Storm events}: Dec 28, 2023 (TP) and Dec 22, 2024 (all sites).
+    \item \textbf{Time-varying doffp}: Feed altimeter bed level back to PUV L2 to
+          improve bed velocity estimates (cross-pipeline correction).
+    \item \textbf{Paper}: Equilibrium model critique --- do Dean/Yates/Ludka models
+          work at depth? First direct, depth-resolved test.
+  \end{enumerate}
+\end{frame}
+
+\end{document}

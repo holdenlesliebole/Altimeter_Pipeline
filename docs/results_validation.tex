@@ -1,0 +1,89 @@
+% Altimeter Pipeline — Validation Results Section
+% Drop into your paper's results section.
+
+\subsection{Pipeline validation}
+
+\subsubsection{Cross-site QC performance}
+
+The pipeline was validated across five representative deployments spanning
+all three sites, both instrument types (AA400 altimeter and EA400
+echosounder), and three sampling modes (continuous, burst-300, burst-60).
+Table~\ref{tab:alt_validation} summarizes the QC performance.
+
+\begin{table}[h]
+\centering
+\caption{Pipeline validation across representative deployments.
+IQR = median within-burst interquartile range.}
+\label{tab:alt_validation}
+\begin{tabular}{lcccccc}
+\toprule
+Deployment & Instrument & Bursts & Rejected & BL range & IQR & Valid\% \\
+\midrule
+SIO24 (6m, continuous) & AA400 & 257 & 34 & 71~mm & 4.6~mm & 97\% \\
+SIO24 (6m, burst-300) & AA400 & 1531 & 6 & 57~mm & 5.1~mm & 97\% \\
+TP24 (10m, echosounder) & EA400 & 1719 & 70 & 94~mm & 7.2~mm & 94\% \\
+TP25 (10m, burst-60) & AA400 & 6883 & 275 & 128~mm & 3.8~mm & 97\% \\
+SOL25 (7m, tilted) & EA400 & 2600 & 490 & 99~mm & 7.3~mm & 88\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The AA400 altimeters consistently exhibited lower within-burst IQR
+(\SIrange{3.8}{5.1}{\milli\meter}) compared to the EA400 echosounders
+(\SIrange{7.2}{7.3}{\milli\meter}), reflecting the simpler measurement
+geometry and more focused acoustic beam of the dedicated altimeter.
+The percent of valid samples within accepted bursts exceeded 88\%
+across all deployments. The Solana Beach deployment demonstrated that
+the tilt-deviation mask correctly preserves data from a tilted
+instrument (baseline tilt \SI{13.2}{\degree}) while rejecting periods
+of transient disturbance.
+
+\subsubsection{Firmware error recovery}
+
+The Torrey Pines 5m altimeter (Nov 2023 -- Feb 2024) was affected by
+a firmware bug that overwrote valid altitude data with date-string
+error messages after memory filled ($\sim$113~days). The two-level
+despiking approach recovered the underlying morphological signal:
+the per-ping phase-space despike removed individual corrupted samples
+within bursts, and the iterative burst-level despike (5~passes)
+removed 1472~additional corrupted bursts. The resulting time series
+clearly shows the \SI{700}{\milli\meter} accretion event caused by
+the December 28, 2023 storm, consistent with the subaerial beach
+erosion observed in concurrent surveys.
+
+\subsubsection{Independent validation against beach surveys}
+
+Echosounder bed level measurements were independently validated
+against beach morphology surveys conducted by the Scripps Coastal
+Processes Group using jetski-mounted RTK GPS systems. Survey profiles
+were interpolated to the instrument cross-shore position at each
+survey date.
+
+For single-deployment validation at Solana Beach (March--June 2025),
+the RMSE of the bed level change between consecutive survey pairs was
+\SI{22}{\milli\meter} with a bias of \SI{-4}{\milli\meter}. This is
+comparable to the spatial variability inherent in the survey comparison
+itself (survey-to-survey $\sigma = \SI{21}{\milli\meter}$), indicating
+that the instrument accuracy is at least as good as can be resolved by
+the available ground truth.
+
+For multi-deployment validation spanning the full record at each site,
+the cross-deployment baseline anchoring introduced additional
+uncertainty. Torrey Pines 10m (survey-anchored, 3~pairs) showed
+RMSE = \SI{61}{\milli\meter}. The Solana Beach multi-deployment record
+showed larger RMSE (\SI{92}{\milli\meter}), attributable to physical
+relocation of the echosounder pipe during maintenance (re-jetting),
+which changed the spatial point of measurement between deployments.
+
+\subsubsection{L4 PUV merge prototype}
+
+The L4 merged product was prototyped on SIO24A (SIO Pier, April 2024),
+matching 131~altimeter bursts to PUV L2 wave spectral segments within
+$\pm$\SI{5}{\minute} (median offset \SI{2.5}{\minute}). At \SI{6}{\meter}
+depth, all matched bursts exceeded the sediment mobilization threshold
+($H_s$ = \SIrange{0.55}{1.59}{\meter}, $\tau_b$ = \SIrange{0.20}{1.84}{\pascal}).
+Initial scatter plots of $dz/dt$ versus $\tau_b$ show symmetric scatter
+around zero, indicating roughly equal accretion and erosion rates at all
+stress levels. Threshold identification requires data from deeper sites
+(Torrey Pines 10~m, 15~m) where not all conditions exceed the mobilization
+threshold.
