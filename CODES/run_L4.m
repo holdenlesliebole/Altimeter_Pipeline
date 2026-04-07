@@ -30,8 +30,11 @@ fprintf('========================================\n');
 L4_SIO = build_L4_site(L3root, pvuRoot, 'SouthSIOPier', ...
     'depths', 6, ...
     'pvuLabel', "SIO_6m", ...
-    'anchorMethod', 'sequential', ...
+    'anchorMethod', 'survey', ...
+    'instrumentLat', 32.8665, 'instrumentLon', -117.2570, ...
+    'mopNumber', 511, ...
     'sensorElev_m', -4.96, ...
+    'mopStation', "D0511", ...
     'savePath', fullfile(outDir, 'L4_SIO_6m.mat'));
 
 %% ======================== TORREY PINES (multi-depth) ========================
@@ -55,6 +58,7 @@ for d = 1:numel(tp_depths)
             'anchorMethod', 'survey', ...
             'instrumentLat', tp_depths(d).lat, ...
             'instrumentLon', tp_depths(d).lon, ...
+            'mopStation', "D0586", ...
             'savePath', fullfile(outDir, sprintf('L4_TP_%dm.mat', tp_depths(d).depth)));
 
         % Store for plotting
@@ -99,15 +103,23 @@ function local_plot_L4(L4, titleStr, fname, figDir)
     sgtitle(sprintf('%s — L4 Diagnostics (%d matched bursts)', titleStr, sum(matched)), ...
         'FontSize', 14);
 
-    % Panel 1: Time series — bed level + Hs
+    % Panel 1: Time series — bed level + Hs (combined PUV + MOP)
     nexttile([1 2])
     yyaxis left
     plot(L4.time, L4.bedlevel_mm, 'Color',[0.18 0.45 0.75], 'LineWidth',0.6);
     ylabel('Bed level (mm)');
     yyaxis right
-    plot(L4.time(matched), L4.Hs(matched), 'Color',[0.85 0.33 0.1 0.3], 'LineWidth',0.4);
+    if isfield(L4, 'Hs_combined')
+        hasHs = ~isnan(L4.Hs_combined);
+        plot(L4.time(hasHs), L4.Hs_combined(hasHs), 'Color',[0.85 0.33 0.1 0.3], 'LineWidth',0.4);
+        nPuv = sum(L4.Hs_source == "PUV");
+        nMop = sum(L4.Hs_source == "MOP");
+        legend('Bed level', sprintf('H_s (%d PUV + %d MOP)', nPuv, nMop), 'Location','best');
+    else
+        plot(L4.time(matched), L4.Hs(matched), 'Color',[0.85 0.33 0.1 0.3], 'LineWidth',0.4);
+        legend('Bed level', 'H_s (PUV)', 'Location','best');
+    end
     ylabel('H_s (m)');
-    legend('Bed level', 'H_s', 'Location','best');
     grid on; box off
 
     % Panel 2: dz/dt vs tau_b

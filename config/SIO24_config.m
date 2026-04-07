@@ -4,6 +4,8 @@ function cfg = SIO24_config()
     cfg.outputDir   = fullfile(fileparts(mfilename('fullpath')), '..', 'outputs');
     cfg.site        = 'SouthSIOPier';
     cfg.mop         = 'MOP511';
+    cfg.latlon      = [32.8665, -117.2570];  % MOP511 6m instrument position
+    cfg.mopNumber   = 511;  % override auto-detection (LatLon2MopxshoreX maps to MOP513)
 
     k = 0;
 

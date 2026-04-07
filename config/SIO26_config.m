@@ -4,6 +4,8 @@ function cfg = SIO26_config()
     cfg.outputDir   = fullfile(fileparts(mfilename('fullpath')), '..', 'outputs');
     cfg.site        = 'SouthSIOPier';
     cfg.mop         = 'MOP511';
+    cfg.latlon      = [32.8665, -117.2570];
+    cfg.mopNumber   = 511;
 
     k = 0;
 

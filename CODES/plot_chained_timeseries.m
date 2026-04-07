@@ -17,6 +17,7 @@ arguments
     opts.instrumentLat (1,1) double = NaN
     opts.instrumentLon (1,1) double = NaN
     opts.smFilePath (1,1) string = "/Volumes/group/MOPS/"
+    opts.mopNumber (1,1) double = NaN
     opts.title (1,1) string = ""
     opts.yAxisMode (1,1) string = "bedlevel"
     opts.savePath (1,1) string = ""
@@ -27,8 +28,12 @@ surveyDates = [];
 surveyElevs = [];
 
 if ~isnan(opts.instrumentLat)
-    [mopNum, xShore] = LatLon2MopxshoreX(opts.instrumentLat, opts.instrumentLon);
-    mopNum = round(mopNum);
+    [autoMop, xShore] = LatLon2MopxshoreX(opts.instrumentLat, opts.instrumentLon);
+    if ~isnan(opts.mopNumber)
+        mopNum = opts.mopNumber;
+    else
+        mopNum = round(autoMop);
+    end
     smFile = fullfile(opts.smFilePath, sprintf('M%05dSM.mat', mopNum));
 
     if isfile(smFile)

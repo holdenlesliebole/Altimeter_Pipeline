@@ -32,6 +32,8 @@ arguments
     opts.instrumentLat (1,1) double = NaN
     opts.instrumentLon (1,1) double = NaN
     opts.sensorElev_m (1,1) double = NaN
+    opts.mopNumber (1,1) double = NaN    % override auto-detected MOP for surveys
+    opts.mopStation (1,1) string = ""    % CDIP station code for MOP wave data (e.g. "D0511")
     opts.savePath (1,1) string = ""
 end
 
@@ -48,6 +50,9 @@ if ~isnan(opts.instrumentLat)
 end
 if ~isnan(opts.sensorElev_m)
     chainOpts = [chainOpts, 'sensorElev_m', opts.sensorElev_m];
+end
+if ~isnan(opts.mopNumber)
+    chainOpts = [chainOpts, 'mopNumber', opts.mopNumber];
 end
 
 C = chain_deployments(L3root, siteName, chainOpts{:});
@@ -283,6 +288,42 @@ L4.site    = siteName;
 L4.nBursts = nBursts;
 L4.nMatched = nMatched;
 L4.nPvuDeployments = nPvuLoaded;
+
+%% -- MOP wave data (continuous, fills PUV gaps) ---------------------------
+L4.mop_Hs = nan(nBursts, 1);
+L4.mop_Tp = nan(nBursts, 1);
+
+if opts.mopStation ~= "" && exist('read_MOPline2', 'file')
+    try
+        tStart = C.time(1) - days(1);
+        tEnd   = C.time(end) + days(1);
+        MOP = read_MOPline2(char(opts.mopStation), datenum(tStart), datenum(tEnd));
+        if ~isempty(MOP) && isfield(MOP, 'time')
+            mopTime = datetime(MOP.time, 'ConvertFrom', 'datenum');
+            mopHs = double(MOP.Hs);
+            mopTp = 1 ./ double(MOP.fp);
+            % Interpolate hourly MOP to burst timestamps
+            L4.mop_Hs = interp1(mopTime, mopHs, C.time, 'linear', NaN);
+            L4.mop_Tp = interp1(mopTime, mopTp, C.time, 'linear', NaN);
+            nMop = sum(~isnan(L4.mop_Hs));
+            fprintf('  MOP %s: %d hourly records, %d/%d bursts filled (%.0f%%)\n', ...
+                opts.mopStation, numel(mopTime), nMop, nBursts, 100*nMop/nBursts);
+        end
+    catch ME
+        fprintf('  MOP loading failed: %s\n', ME.message);
+    end
+end
+
+% Use MOP Hs where PUV is missing (gap-fill)
+L4.Hs_combined = L4.Hs;
+L4.Hs_source   = strings(nBursts, 1);
+L4.Hs_source(L4.puv_valid) = "PUV";
+gapFilled = isnan(L4.Hs_combined) & ~isnan(L4.mop_Hs);
+L4.Hs_combined(gapFilled) = L4.mop_Hs(gapFilled);
+L4.Hs_source(gapFilled) = "MOP";
+fprintf('  Hs coverage: %d PUV + %d MOP gap-fill = %d/%d (%.0f%%)\n', ...
+    sum(L4.puv_valid), sum(gapFilled), sum(~isnan(L4.Hs_combined)), nBursts, ...
+    100*sum(~isnan(L4.Hs_combined))/nBursts);
 
 % Summary
 nStorm = sum(L4.storm_flag & L4.puv_valid);

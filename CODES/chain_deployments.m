@@ -43,6 +43,7 @@ arguments
     opts.smFilePath (1,1) string = "/Volumes/group/MOPS/"
     opts.maxSurveyDelta_hr (1,1) double = 48
     opts.sensorElev_m (1,1) double = NaN  % known sensor elevation (NAVD88) for sequential+absolute
+    opts.mopNumber (1,1) double = NaN     % override auto-detected MOP number
 end
 
 %% -- Load all L3 files for this site, organized by deployment time --------
@@ -95,8 +96,12 @@ surveyElevs = [];
 xShore = NaN;
 
 if opts.method == "survey" && ~isnan(opts.instrumentLat)
-    [mopNum, xShore] = LatLon2MopxshoreX(opts.instrumentLat, opts.instrumentLon);
-    mopNum = round(mopNum);
+    [autoMop, xShore] = LatLon2MopxshoreX(opts.instrumentLat, opts.instrumentLon);
+    if ~isnan(opts.mopNumber)
+        mopNum = opts.mopNumber;
+    else
+        mopNum = round(autoMop);
+    end
     smFile = fullfile(opts.smFilePath, sprintf('M%05dSM.mat', mopNum));
 
     if isfile(smFile)
