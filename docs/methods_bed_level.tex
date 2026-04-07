@@ -348,15 +348,63 @@ relocation of the echosounder pipe during maintenance (re-jetting)
 introduced spatial offsets between deployments that the survey
 anchoring could not fully reconcile.
 
-\paragraph{Sequential anchoring.} For SIO~pier (no surveys available),
-consecutive deployments were chained by matching the last valid burst
-of deployment $N$ to the first valid burst of deployment $N{+}1$.
-This is valid because instrument swaps occurred on the same dive day,
-with the pipe mount point unchanged. Sequential offsets were typically
+\paragraph{Sequential anchoring.} For SIO~pier, consecutive deployments
+were chained by matching the last valid burst of deployment $N$ to the
+first valid burst of deployment $N{+}1$. This is valid because
+instrument swaps occurred on the same dive day, with the pipe mount
+point unchanged. Sequential offsets were typically
 $< \SI{30}{\milli\meter}$, confirming the physical consistency of the
 mount across swaps. The absolute bed elevation was computed from the
 known sensor height above the bed at installation
 ($z_\text{sensor} = \SI{-4.96}{\meter}$~NAVD88).
+
+Note that although jetski GPS surveys were available at MOP~511 (14
+surveys reaching $-\SI{11.5}{\meter}$), survey anchoring was not
+applied at SIO because the instrument is located near the head of
+Scripps Submarine Canyon, where the local bathymetry deviates
+significantly from the MOP transect profile. The survey profile at
+the instrument's cross-shore position (X$_\text{shore}$ =
+\SI{267}{\meter}) shows $\sim \SI{-4}{\meter}$~NAVD88, while the
+instrument is at $\sim \SI{-6}{\meter}$~NAVD88---a \SI{2}{\meter}
+discrepancy caused by canyon-related bathymetric complexity.
+
+\subsection{Level 4: Wave forcing integration}
+
+Burst-averaged bed level products (L3) were merged with co-located
+PUV spectral wave products (L2/L3 from the PUV Pipeline) and CDIP
+MOP spectral wave model data to create an L4 dataset with
+simultaneous wave forcing and bed response.
+
+\subsubsection{PUV timestamp matching}
+
+For each altimeter burst timestamp, the nearest PUV L2 spectral
+segment within $\pm \SI{5}{\minute}$ was identified by
+nearest-neighbor matching. The $\pm \SI{5}{\minute}$ tolerance is
+appropriate because both PUV segments (\SI{17}{\minute} averages)
+and altimeter bursts (\SIrange{2.5}{15}{\minute} medians) are
+already integrated quantities; interpolation between consecutive
+averages would not add physical information. The median timestamp
+offset between matched pairs was \SI{2.5}{\minute}.
+
+The L4 struct uses altimeter timestamps as the backbone (response
+variable), with PUV fields set to NaN where no match exists (PUV
+instrument failures, deployment gaps).
+
+\subsubsection{MOP wave model gap-filling}
+
+Continuous hourly wave parameters ($H_s$, $T_p$) from the CDIP
+Monitoring and Prediction (MOP) spectral wave model were loaded for
+each site's MOP station and interpolated to the burst timestamps.
+This fills all PUV gaps with modeled wave data, providing 100\%
+wave height coverage over the full altimeter record. The data source
+is tracked per burst ($H_s$ from PUV or MOP) to distinguish
+in-situ measurements from model output. MOP wave parameters do not
+include near-bed quantities (orbital velocity, shear stress, velocity
+moments), which are only available from PUV in-situ measurements.
+
+L4 products were generated for SIO~pier at \SI{6}{\meter} and Torrey
+Pines at \SI{5}{\meter}, \SI{10}{\meter}, and \SI{15}{\meter}, with
+PUV coverage of 17--35\% and MOP gap-fill to 100\% $H_s$ coverage.
 
 % TODO: Insert Table \ref{tab:alt_validation} with deployment summary
 % statistics (N_bursts, N_rejected, BL_range, IQR_med, pctValid)
