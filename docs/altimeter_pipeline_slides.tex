@@ -314,33 +314,134 @@
 \end{frame}
 
 % ==================================================================
-\section{L4: PUV Correlation (Prototype)}
+\section{L4: PUV Correlation}
 % ==================================================================
 
-\begin{frame}{Merging Bed Level with Wave Forcing}
-  \textbf{L4 = Altimeter L3 + PUV L2/L3}
+\begin{frame}{L4 Merged Products}
+  \textbf{Full-site products: SIO 6m, TP 5/10/15m}
   \begin{itemize}
-    \item Nearest-neighbor matching: $\pm$5~min tolerance, median offset 2.5~min
+    \item Nearest-neighbor matching: $\pm$5~min, median offset 2.5~min
     \item Altimeter timestamps as backbone (response variable)
-    \item Wave fields: $H_s$, $T_p$, $E_f$, $F_b$, $U_b$, $\tau_b$, Shields, skewness, asymmetry
+    \item PUV fields: $H_s$, $\tau_b$, $U_b$, Shields, velocity moments
+    \item \textbf{MOP gap-filling}: continuous hourly $H_s$ from CDIP model
+          fills PUV deployment gaps $\rightarrow$ 100\% $H_s$ coverage
   \end{itemize}
   \vspace{0.5em}
-  \textbf{SIO24A prototype (Apr 2024):}
+  \begin{table}\small
+    \begin{tabular}{lrrrr}
+    \toprule
+    Site & Bursts & PUV (\%) & MOP fill & $H_s$ coverage \\
+    \midrule
+    SIO 6m  & 32{,}267 & 8{,}190 (25\%) & 25{,}424 & 100\% \\
+    TP 5m   & 32{,}486 & 5{,}560 (17\%) & 27{,}998 & 100\% \\
+    TP 10m  & 25{,}696 & 9{,}031 (35\%) & 18{,}175 & 100\% \\
+    TP 15m  & 24{,}092 & 8{,}352 (35\%) & 16{,}415 & 100\% \\
+    \bottomrule
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+\begin{frame}{SIO 6m — 2-Year L4 Diagnostics}
+  \includegraphics[width=\textwidth]{L4_SIO_6m_diagnostics.png}
   \begin{itemize}
-    \item 131 matched bursts, $H_s$ = 0.55--1.59~m, $\tau_b$ = 0.20--1.84~Pa
-    \item 100\% mobilized at 6~m depth (all bursts above threshold)
-    \item Next: full SIO 2-year record, then TP multi-depth for threshold analysis
+    \item Top: continuous bed level (blue) $+$ $H_s$ (orange, PUV$+$MOP)
+    \item Bottom left: $dz/dt$ vs $\tau_b$ colored by $H_s$
+    \item Bottom right: binned $|dz/dt|$ vs $U_b$ --- clear increasing trend
   \end{itemize}
 \end{frame}
 
-\begin{frame}{First Look: $dz/dt$ vs Wave Forcing}
-  \includegraphics[width=0.9\textwidth]{L4_SIO24A_scatter.png}
+% ==================================================================
+\section{Transport Threshold Analysis}
+% ==================================================================
+
+\begin{frame}{Depth-Dependent Mobilization}
+  \includegraphics[width=\textwidth]{threshold_tau_b.png}
   \begin{itemize}
-    \item Symmetric scatter: roughly equal accretion and erosion rates at all stress levels
-    \item No clear threshold visible at 6~m (all bursts mobilized)
-    \item Threshold analysis requires deeper sites (TP 10~m, 15~m)
-    \item 8 transport relationships to test (reconciled plan from both pipelines)
+    \item Threshold identified as 1.5$\times$ background $|dz/dt|$
+    \item Mobilization: 100\% (5m) $\rightarrow$ 69\% (15m)
+    \item Median Shields exceeds Soulsby $\theta_{cr}$ at all depths
   \end{itemize}
+\end{frame}
+
+\begin{frame}{Transport Rate vs Orbital Velocity — All Depths}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \includegraphics[width=\textwidth]{threshold_Ub_all_depths.png}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{itemize}
+        \item TP 5m (orange): $\sim$30~mm/hr --- dramatically higher
+              than all other sites
+        \item SIO 6m and TP 10m: $\sim$5--10~mm/hr
+        \item TP 15m: lowest rates but highest \emph{efficiency}
+              (mm/hr per Pa)
+        \item All sites show increasing $|dz/dt|$ with $U_b$
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Capacity Saturation: $|dz/dt| \sim (\theta-\theta_{cr})^n$}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \includegraphics[width=\textwidth]{transport_rate_fitting.png}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \textbf{Power law exponents:}
+      \begin{itemize}
+        \item TP 5m: $n = 0.16$
+        \item SIO 6m: $n = -0.04$
+        \item TP 10m: $n = -0.01$
+        \item TP 15m: $n = -0.02$
+      \end{itemize}
+      Classical: $n \approx 1.5$ (MPM)\\[0.5em]
+      \textbf{Key finding:} transport rate is
+      \textbf{independent of excess stress} once
+      threshold is exceeded.\\[0.5em]
+      \textbf{Implication:} capacity-saturated regime.
+      Equilibrium models assuming $dz/dt \propto$
+      disequilibrium are wrong at these depths.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Velocity Moments: Hoefel \& Elgar (2003)}
+  \includegraphics[width=\textwidth]{velocity_moments.png}
+  \begin{itemize}
+    \item Left: $dz/dt$ vs velocity skewness --- weak signal at TP 5m
+    \item Right: $dz/dt$ vs $\langle u|u|^2 \rangle$ --- \textbf{clear
+          correlation at TP 5m}: positive moments $\rightarrow$ accretion,
+          negative $\rightarrow$ erosion
+    \item Consistent with \citet{hoefel2003}: net transport driven by
+          third-order velocity moments (wave nonlinearity)
+    \item Signal weakens with depth as waves become more sinusoidal
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Transport Efficiency by Depth}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \includegraphics[width=\textwidth]{transport_efficiency.png}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \textbf{Efficiency = mean $|dz/dt|$ / mean $\tau_b$}\\[0.5em]
+      \begin{tabular}{lr}
+      \toprule
+      Site & Efficiency \\
+      \midrule
+      SIO 6m & 11.5 \\
+      TP 10m & 20.6 \\
+      TP 5m & 26.1 \\
+      TP 15m & 34.9 \\
+      \bottomrule
+      \end{tabular}\\[0.5em]
+      Efficiency \textbf{increases with depth}:\\
+      finer sediment at depth = more
+      easily mobilized per unit stress.\\[0.5em]
+      Opposite to total transport rate
+      (which decreases with depth).
+    \end{column}
+  \end{columns}
 \end{frame}
 
 % ==================================================================
@@ -349,17 +450,18 @@
 
 \begin{frame}{Remaining Work}
   \begin{enumerate}
-    \item \textbf{Full-site L4 products}: Chain all SIO deployments $\times$ all PUV
-          deployments for 2-year merged record. Same for TP multi-depth.
-    \item \textbf{Transport threshold analysis}: $dz/dt$ vs $\tau_b$ at TP 10~m and 15~m
-          where not all bursts are mobilized.
-    \item \textbf{8 transport relationships}: Excess Shields, bottom energy flux,
-          $|u|^3$, $u|u|^2$, equilibrium, undertow, swell vs sea, cumulative forcing.
-    \item \textbf{Storm events}: Dec 28, 2023 (TP) and Dec 22, 2024 (all sites).
-    \item \textbf{Time-varying doffp}: Feed altimeter bed level back to PUV L2 to
-          improve bed velocity estimates (cross-pipeline correction).
-    \item \textbf{Paper}: Equilibrium model critique --- do Dean/Yates/Ludka models
-          work at depth? First direct, depth-resolved test.
+    \item \textbf{Storm event decomposition}: Dec 28, 2023 case study at
+          TP multi-depth --- simultaneous $H_s$, $\tau_b$, and $dz/dt$.
+    \item \textbf{Equilibrium model critique}: compute Dean
+          disequilibrium, test whether $dz/dt \propto$ disequilibrium.
+          The $n \approx 0$ exponent suggests this will fail.
+    \item \textbf{Hoefel \& Elgar deep dive}: quantify the
+          $\langle u|u|^2 \rangle$ correlation at TP 5m, compare
+          with their Duck94 results.
+    \item \textbf{Site-specific $D_{50}$}: lab grain size analysis will
+          sharpen all Shields comparisons.
+    \item \textbf{Time-varying doffp}: feed altimeter bed level back to
+          PUV for improved bed velocity estimates.
   \end{enumerate}
 \end{frame}
 

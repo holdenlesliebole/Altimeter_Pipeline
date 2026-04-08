@@ -75,15 +75,137 @@ showed larger RMSE (\SI{92}{\milli\meter}), attributable to physical
 relocation of the echosounder pipe during maintenance (re-jetting),
 which changed the spatial point of measurement between deployments.
 
-\subsubsection{L4 PUV merge prototype}
+\subsubsection{L4 merged products}
 
-The L4 merged product was prototyped on SIO24A (SIO Pier, April 2024),
-matching 131~altimeter bursts to PUV L2 wave spectral segments within
-$\pm$\SI{5}{\minute} (median offset \SI{2.5}{\minute}). At \SI{6}{\meter}
-depth, all matched bursts exceeded the sediment mobilization threshold
-($H_s$ = \SIrange{0.55}{1.59}{\meter}, $\tau_b$ = \SIrange{0.20}{1.84}{\pascal}).
-Initial scatter plots of $dz/dt$ versus $\tau_b$ show symmetric scatter
-around zero, indicating roughly equal accretion and erosion rates at all
-stress levels. Threshold identification requires data from deeper sites
-(Torrey Pines 10~m, 15~m) where not all conditions exceed the mobilization
-threshold.
+Full-site L4 merged products were constructed for SIO~pier at
+\SI{6}{\meter} and Torrey Pines at \SI{5}{\meter}, \SI{10}{\meter},
+and \SI{15}{\meter}. PUV L2 spectral segments were matched to
+altimeter bursts by nearest-neighbor within $\pm$\SI{5}{\minute}
+(median offset \SI{2.5}{\minute}). Continuous hourly $H_s$ from the
+CDIP MOP spectral wave model was interpolated to burst timestamps to
+fill PUV deployment gaps, providing 100\% wave height coverage over
+the full altimeter record at all sites.
+
+% Table: L4 coverage
+\begin{table}[h]
+\centering
+\caption{L4 merged product coverage.}
+\label{tab:l4_coverage}
+\begin{tabular}{lcrrr}
+\toprule
+Site & Depth & Altimeter bursts & PUV matched (\%) & MOP gap-fill \\
+\midrule
+SIO Pier & 6~m & 32{,}267 & 8{,}190 (25\%) & 25{,}424 \\
+Torrey Pines & 5~m & 32{,}486 & 5{,}560 (17\%) & 27{,}998 \\
+Torrey Pines & 10~m & 25{,}696 & 9{,}031 (35\%) & 18{,}175 \\
+Torrey Pines & 15~m & 24{,}092 & 8{,}352 (35\%) & 16{,}415 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Sediment mobilization and transport thresholds}
+
+\subsubsection{Depth-dependent mobilization}
+
+Using the \citet{soulsby1997} critical Shields parameter for
+$D_{50} = \SI{0.25}{\milli\meter}$ (fine sand, $D_* = 6.0$,
+$\theta_{cr} = 0.043$, $\tau_{cr} = \SI{0.17}{\pascal}$), the
+fraction of burst-averaged segments exceeding the mobilization
+threshold decreases monotonically with depth: 100\% at \SI{5}{\meter},
+95\% at \SI{6}{\meter}, 87\% at \SI{10}{\meter}, and 69\% at
+\SI{15}{\meter} (Table~\ref{tab:thresholds}). At the shallowest
+sites (5--6~m), the bed is in near-continuous transport; at
+\SI{15}{\meter}, approximately one-third of observations are below
+the theoretical mobilization threshold.
+
+\begin{table}[h]
+\centering
+\caption{Sediment mobilization and transport characteristics by depth.
+$\theta_{med}$: median Shields parameter during PUV-matched bursts.
+Transport efficiency: mean $|d\Delta z/dt|$ divided by mean $\tau_b$.}
+\label{tab:thresholds}
+\begin{tabular}{lccccc}
+\toprule
+Site & Depth & $\theta_{med}$ & Mobilized & Mean $|d\Delta z/dt|$ & Efficiency \\
+ & (m) & & (\%) & (mm/hr) & (mm/hr/Pa) \\
+\midrule
+SIO Pier & 6 & 0.105 & 95 & 5.8 & 11.5 \\
+Torrey Pines & 5 & 0.240 & 100 & 26.9 & 26.1 \\
+Torrey Pines & 10 & 0.091 & 87 & 9.4 & 20.6 \\
+Torrey Pines & 15 & 0.057 & 69 & 10.2 & 34.9 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Transport rate and excess shear stress}
+
+The relationship between bed level change rate and excess Shields
+parameter ($\theta - \theta_{cr}$) was examined by fitting power
+laws of the form $|d\Delta z/dt| = a\,(\theta - \theta_{cr})^n$ to
+the binned data at each depth. Classical bedload transport formulas
+predict $n \approx 1.5$ \citep[Meyer-Peter M\"uller,][]{soulsby1997};
+however, the observed exponents were dramatically lower:
+
+\begin{itemize}
+  \item Torrey Pines 5~m: $n = 0.16$ ($a = 33.9$~mm/hr)
+  \item SIO Pier 6~m: $n = -0.04$ ($a = 5.0$~mm/hr)
+  \item Torrey Pines 10~m: $n = -0.01$ ($a = 9.0$~mm/hr)
+  \item Torrey Pines 15~m: $n = -0.02$ ($a = 9.1$~mm/hr)
+\end{itemize}
+
+The near-zero exponents indicate that the bed level change rate is
+approximately \textbf{independent of excess shear stress} once the
+threshold is exceeded. This suggests a transport-capacity-saturated
+regime in which the rate of morphological change is limited not by
+the available forcing but by sediment supply, bedform dynamics, or
+gravitational restoring forces. The \SI{5}{\meter} site shows the
+strongest stress dependence ($n = 0.16$), consistent with its
+proximity to the surf zone where wave nonlinearity and turbulence
+generate additional transport mechanisms beyond those captured by
+the Shields parameterization.
+
+\subsubsection{Transport efficiency}
+
+The transport efficiency, defined as mean $|d\Delta z/dt|$ per unit
+mean $\tau_b$, increases with depth: \SI{11.5}{\milli\meter\per\hour
+\per\pascal} at \SI{6}{\meter} to \SI{34.9}{\milli\meter\per\hour
+\per\pascal} at \SI{15}{\meter}. This depth dependence is consistent
+with finer sediment at greater depths (lower threshold, more easily
+mobilized per unit stress) and is opposite to the total bed change
+rate, which decreases with depth because less wave energy reaches the
+bed. The \SI{5}{\meter} site is an outlier with both high total
+transport rate (\SI{26.9}{\milli\meter\per\hour}) and moderately high
+efficiency (\SI{26.1}{\milli\meter\per\hour\per\pascal}), reflecting
+the energetic surf-zone-adjacent conditions.
+
+\subsubsection{Accretion--erosion asymmetry}
+
+Separating the signed bed level change rate into accretion
+($d\Delta z/dt > 0$) and erosion ($d\Delta z/dt < 0$) components
+reveals a depth-dependent asymmetry. At the \SI{5}{\meter} site,
+erosion rates at high $\tau_b$ significantly exceed accretion rates,
+indicating that strong wave events preferentially remove sand from
+this depth. At deeper sites (\SI{10}{\meter}, \SI{15}{\meter}),
+accretion and erosion magnitudes are approximately symmetric,
+consistent with a more passive morphological response to oscillatory
+forcing.
+
+\subsubsection{Velocity moment correlations}
+
+The relationship between bed level change and wave velocity moments
+\citep{hoefel2003} was assessed using the PUV-derived velocity
+skewness and the third-order moment $\langle u|u|^2 \rangle$. At
+Torrey Pines \SI{5}{\meter}, the $\langle u|u|^2 \rangle$ moment
+shows a clear correlation with signed $d\Delta z/dt$: positive
+velocity moments (onshore-skewed wave forcing) correspond to positive
+bed level change (accretion), and negative moments correspond to
+erosion. This is consistent with the \citet{hoefel2003} energetics
+formulation, in which the net cross-shore sediment flux depends on
+the third moment of the near-bed velocity.
+
+At deeper sites (SIO \SI{6}{\meter}, Torrey Pines \SI{10}{\meter}
+and \SI{15}{\meter}), the velocity moment signal is weaker and
+noisier, indicating that wave nonlinearity is less effective at
+driving net transport at these depths. This depth dependence is
+expected: wave skewness and asymmetry decrease with increasing
+depth as waves become more sinusoidal farther from the surf zone.
