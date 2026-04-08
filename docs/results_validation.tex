@@ -209,3 +209,81 @@ noisier, indicating that wave nonlinearity is less effective at
 driving net transport at these depths. This depth dependence is
 expected: wave skewness and asymmetry decrease with increasing
 depth as waves become more sinusoidal farther from the surf zone.
+
+\subsection{Equilibrium model critique}
+
+The Dean/Yates/Ludka equilibrium beach change framework was tested
+against the depth-resolved L4 observations. Three formulations were
+evaluated:
+
+\begin{enumerate}
+  \item \textbf{Dean $\Omega$ disequilibrium}: $d\Delta z/dt$ versus
+    $\Omega - \Omega_{eq}$, where $\Omega = H_s / (w_s T_p)$ and
+    $\Omega_{eq}$ is the deployment median.
+  \item \textbf{Wave energy proxy}: $d\Delta z/dt$ versus $H_s^2$.
+  \item \textbf{State dependence}: $d\Delta z/dt$ versus current bed
+    level $\Delta z$ (the Yates/Ludka mechanism: above equilibrium
+    $\rightarrow$ erosion, below $\rightarrow$ accretion).
+\end{enumerate}
+
+All three formulations failed at all four depths, with $R^2 < 0.01$
+in every case (Table~\ref{tab:equilibrium}).
+
+\begin{table}[h]
+\centering
+\caption{Equilibrium model test results. All $R^2$ values $< 0.01$.}
+\label{tab:equilibrium}
+\begin{tabular}{lcccc}
+\toprule
+Site & Depth & $\Omega$ diseq.\ $R^2$ & $H_s^2$ $R^2$ & State $R^2$ \\
+\midrule
+SIO Pier & 6~m & 0.006 & 0.010 & 0.000 \\
+Torrey Pines & 5~m & 0.000 & 0.000 & 0.008 \\
+Torrey Pines & 10~m & 0.003 & 0.000 & 0.001 \\
+Torrey Pines & 15~m & 0.005 & 0.005 & 0.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The equilibrium concept---that $d\Delta z/dt$ is proportional to the
+deviation from a wave-determined equilibrium state---has essentially
+zero predictive power for bed level change rate at \SIrange{5}{15}{\meter}
+depth. This is consistent with the capacity-saturation finding
+($n \approx 0$): once the mobilization threshold is exceeded, the
+transport rate does not increase with forcing magnitude, so the
+disequilibrium metric carries no information about the rate of
+morphological change.
+
+\subsection{Storm event response}
+
+The December 28, 2023 storm (peak $H_s = \SI{3.2}{\meter}$ at
+\SI{10}{\meter}$ depth) was analyzed as a case study of depth-resolved
+storm morphological response across the Torrey Pines cross-shore
+transect (Table~\ref{tab:storm}).
+
+\begin{table}[h]
+\centering
+\caption{December 28, 2023 storm response at Torrey Pines MOP586.
+Net $\Delta z$ = post-storm minus pre-storm median bed level.}
+\label{tab:storm}
+\begin{tabular}{lcccc}
+\toprule
+Depth & Pre-storm & Post-storm & Net $\Delta z$ & Peak $|d\Delta z/dt|$ \\
+(m) & (mm) & (mm) & (mm) & (mm/day) \\
+\midrule
+5 & $-160$ & $+805$ & $\mathbf{+965}$ & 1500 \\
+7 & $-169$ & $+155$ & $+324$ & 600 \\
+10 & $-40$ & $-3$ & $+38$ & 120 \\
+15 & $-23$ & $-23$ & $-1$ & 30 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The storm deposited nearly \SI{1}{\meter} of sand at \SI{5}{\meter}
+depth (the storm bar), with the deposit attenuating exponentially
+across the profile: one-third as much at \SI{7}{\meter},
+\SI{38}{\milli\meter} at \SI{10}{\meter}, and zero net change at
+\SI{15}{\meter}. The \SI{15}{\meter} site acted as the effective
+depth of closure for this storm magnitude. Peak bed change rates at
+\SI{5}{\meter} reached \SI{1500}{\milli\meter\per\day}
+(\SI{1.5}{\milli\meter\per\minute}) during the storm peak.

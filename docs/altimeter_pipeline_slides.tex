@@ -9,7 +9,7 @@
 
 \usepackage{booktabs}
 \usepackage{amsmath}
-\usepackage{siunitx}
+% \usepackage{siunitx}  % not available in basic TeX Live
 \usepackage{graphicx}
 \usepackage{xcolor}
 
@@ -445,23 +445,137 @@
 \end{frame}
 
 % ==================================================================
-\section{Next Steps}
+\section{Storm Event Response}
 % ==================================================================
 
-\begin{frame}{Remaining Work}
+\begin{frame}{December 28, 2023 Storm --- Cross-Shore Response}
+  \includegraphics[width=\textwidth]{storm_dec2023_TP_refined.png}
+  \begin{itemize}
+    \item 4-panel: $H_s$, smoothed bed level, 24-hr $d\Delta z/dt$, $\tau_b$
+    \item 4 depths on MOP586: 5, 7, 10, 15~m
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Storm Bar Deposition --- Depth Attenuation}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \begin{table}\small
+        \begin{tabular}{lrrr}
+        \toprule
+        Depth & Net $\Delta z$ & Peak rate & Response \\
+        \midrule
+        5~m & $\mathbf{+965}$~mm & 1500~mm/d & Storm bar \\
+        7~m & +324~mm & 600~mm/d & 1/3 of 5~m \\
+        10~m & +38~mm & 120~mm/d & Minor \\
+        15~m & $-1$~mm & 30~mm/d & None \\
+        \bottomrule
+        \end{tabular}
+      \end{table}
+      \vspace{0.5em}
+      \textbf{Exponential attenuation}:\\
+      storm deposit decreases by $\sim$3$\times$\\
+      per doubling of depth.
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{itemize}
+        \item \textbf{5~m}: $\sim$1~m of sand deposited\\
+              (offshore transport from eroded\\
+              subaerial beach)
+        \item \textbf{15~m}: effective depth of closure\\
+              for this storm ($H_s$ = 3.2~m)
+        \item Peak $d\Delta z/dt$ at 5~m:\\
+              1.5~mm/\emph{minute} during storm peak
+        \item First direct depth-resolved\\
+              measurement of storm bar\\
+              formation at Torrey Pines
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{Equilibrium Model Critique}
+% ==================================================================
+
+\begin{frame}{Testing Dean/Yates/Ludka: $d\Delta z/dt$ vs Disequilibrium}
+  \includegraphics[width=\textwidth]{equilibrium_omega_test.png}
+  \begin{itemize}
+    \item Dean $\Omega$ disequilibrium: $\Omega = H_s / (w_s T_p)$
+    \item $R^2 < 0.01$ at \textbf{all four depths}
+    \item Dashed line: best-fit linear relationship (slope $\approx$ 0.5~mm/day)
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Why Equilibrium Models Fail at Depth}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \includegraphics[width=\textwidth]{equilibrium_energy_state.png}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \textbf{Three tests, all FAIL:}\\[0.3em]
+      \begin{tabular}{lc}
+      \toprule
+      Test & Best $R^2$ \\
+      \midrule
+      $\Omega$ diseq. & 0.006 \\
+      $H_s^2$ energy & 0.010 \\
+      State depend. & 0.008 \\
+      \bottomrule
+      \end{tabular}\\[0.5em]
+
+      \textbf{Why it fails:}
+      \begin{enumerate}
+        \item Transport is capacity-saturated\\
+              ($n \approx 0$): rate doesn't\\
+              depend on forcing magnitude
+        \item No state dependence: the bed\\
+              doesn't ``know'' where\\
+              equilibrium is
+        \item The models work at the\\
+              shoreline because the shoreline\\
+              \emph{integrates} the full\\
+              cross-shore budget
+      \end{enumerate}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{Summary \& Next Steps}
+% ==================================================================
+
+\begin{frame}{Key Findings}
   \begin{enumerate}
-    \item \textbf{Storm event decomposition}: Dec 28, 2023 case study at
-          TP multi-depth --- simultaneous $H_s$, $\tau_b$, and $dz/dt$.
-    \item \textbf{Equilibrium model critique}: compute Dean
-          disequilibrium, test whether $dz/dt \propto$ disequilibrium.
-          The $n \approx 0$ exponent suggests this will fail.
+    \item \textbf{Pipeline}: 49 deployments processed (L1$\rightarrow$L4),\\
+          3 sites, 4 depths, 2+ years. Survey-validated (RMSE = 22~mm).
+    \item \textbf{Capacity saturation}: transport rate independent of excess\\
+          shear stress ($n \approx 0$). Not predicted by classical formulas.
+    \item \textbf{Equilibrium models fail}: $R^2 < 0.01$ for Dean $\Omega$,\\
+          $H_s^2$, and state dependence at all depths.
+    \item \textbf{Velocity moments work}: $\langle u|u|^2 \rangle$ from PUV\\
+          predicts signed $d\Delta z/dt$ at 5~m (Hoefel \& Elgar 2003).
+    \item \textbf{Storm bar}: Dec 28, 2023 deposited +965~mm at 5~m,\\
+          attenuating exponentially to zero at 15~m (depth of closure).
+    \item \textbf{Efficiency increases with depth}: finer sediment at depth\\
+          mobilizes more easily per unit stress (11.5$\rightarrow$34.9~mm/hr/Pa).
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Next Steps}
+  \begin{enumerate}
     \item \textbf{Hoefel \& Elgar deep dive}: quantify the
-          $\langle u|u|^2 \rangle$ correlation at TP 5m, compare
-          with their Duck94 results.
-    \item \textbf{Site-specific $D_{50}$}: lab grain size analysis will
-          sharpen all Shields comparisons.
+          $\langle u|u|^2 \rangle$ transport correlation at TP 5~m,
+          compare with Duck94 results.
+    \item \textbf{Site-specific $D_{50}$}: lab grain size from sediment
+          samples will sharpen Shields comparisons and explain the
+          depth-dependent efficiency.
     \item \textbf{Time-varying doffp}: feed altimeter bed level back to
-          PUV for improved bed velocity estimates.
+          PUV L2 for improved bed velocity estimates (cross-pipeline
+          correction).
+    \item \textbf{Seasonal cycle}: decompose SIO 2-year record into
+          seasonal harmonic + residual.
+    \item \textbf{Paper}: ``Why beach equilibrium models fail'' ---
+          first direct evidence from depth-resolved observations.
   \end{enumerate}
 \end{frame}
 
