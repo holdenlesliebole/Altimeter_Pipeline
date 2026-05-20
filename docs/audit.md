@@ -72,14 +72,40 @@ temperature vs the highest-correlation PUV `Tmean` (UTC). Results below.
 | TP MOP586 redeploys (`*_20241122`, `*_20250305`) | AA400 .log | UTC, lag 0 (r 0.92–0.99) | **0** |
 | All `.BIN` echosounders (SOL + TP Phase 2+) | EA400 .BIN | UTC+7/+8 over-offset (r up to 0.998) | **0** (stop adding offset) |
 
-Caveats: (1) the Nov-2023 local altimeters span the Mar-2024 DST change;
-a fixed +8 is correct if the instrument clock did not auto-adjust
-(typical) — verify by cross-correlating their post-March tail separately.
-(2) The SIO `.log` echosounders (text, not `.BIN`) were not covered by
-this sweep and need their own check before reprocessing.
-(3) Deployments with no co-located/overlapping PUV could not be verified
-directly; infer their offset from the same-instrument pattern (e.g. SIO
-gaps → UTC; un-paired `.BIN` echosounders → over-offset).
+Caveats: (1) Deployments with no co-located/overlapping PUV could not be
+verified directly; infer their offset from the same-instrument pattern
+(e.g. SIO gaps → UTC; un-paired `.BIN` echosounders → over-offset).
+
+#### TODO-1 RESOLVED (2026-05-20): SIO `.log` echosounders are tz-correct
+`read_echosounder_log.m` parses a `#TimeLocal` header (raw = local) and
+**does** add `TimeOffsetHours` (lines 108-109) → local + offset = UTC.
+So the `.log` echosounder path is correct, unlike the `.BIN` path.
+Separately, **0 of 23 SIO L1 files actually contain echosounder data**
+(`Eall` empty) despite the config listing `.log` files — the SIO
+echosounders are not in the current processed outputs (a processing gap
+to flag, but not a tz issue and not corrupting any L4).
+
+#### TODO-2 finding (2026-05-20): altimeter clock shifts WITHIN the Nov-2023 records
+The DST check revealed something bigger than DST: the Nov-2023 altimeter
+records read **local PST in winter and UTC from ~spring on**. Confirmed
+two independent ways on the TP 5m Nov-2023 record:
+- Cross-correlation vs UTC PUV: winter +8 (r 0.99), summer 0 (r 0.98).
+- PUV-independent diurnal temperature peak (naive hour): winter peaks at
+  18h (local afternoon → local clock); summer peaks at 23h (local
+  afternoon +~8h → UTC clock; strong 1.26°C signal).
+A single clock cannot drift 8 h, so this is a **mid-deployment clock
+reset**: these "deployments" are two concatenated `.log` files (original
++ a spring/summer post-service redeployment), and the clock was evidently
+reset to UTC at the service to match the new 2024+ convention.
+
+**Consequence:** the altimeter correction is **per raw `.log` file**, not
+per deployment-label. Each original Nov-2023 file = local (+8); each
+post-service file = UTC (0). The per-deployment table above is therefore
+necessary but not sufficient — the `MOP586_*_20240213/14` rows must be
+split at their file boundary. Needs the individual `.log` file date
+ranges and (ideally) Holden's service/clock-reset logs to pin the split.
+The verify sweep should be re-run **per raw file** (not per chained
+deployment) to map every file's convention before reprocessing.
 
 ### Fix plan (for the next focused effort)
 
