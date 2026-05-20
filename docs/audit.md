@@ -50,35 +50,59 @@ the offset it needs (its source is local).
 
 ### Key clarification (re: "were the instruments set to the same clock?")
 
-The deployment notes do not record the clock convention, but it does not
-matter for the diagnosis:
+The deployment notes do not record the clock convention, so a full
+verification sweep was run (2026-05-20): for every altimeter/echosounder
+L1 deployment with a co-located PUV, cross-correlate instrument
+temperature vs the highest-correlation PUV `Tmean` (UTC). Results below.
+
 - **EA400 `.BIN` is UTC intrinsically** — posix timestamps are UTC
-  regardless of the instrument's display-clock setting.
-- **AA400 `.log` is local** — empirically measured (+8 h), independent of
-  notes.
-So the recorded *formats* differ even if the *display clocks* were set the
-same. The fix follows from the formats + the measured offsets, not from
-the (missing) notes.
+  regardless of the instrument's display-clock setting; the reader then
+  wrongly adds the offset.
+- **AA400 `.log` clock convention CHANGED over time** — the Nov-2023
+  campaign set clocks to local Pacific; 2024-onward deployments used UTC.
+  So there is no single altimeter rule; the fix is per-deployment.
+
+#### Verified offset table (reliable rows, r > 0.6)
+
+| Deployment group | Instr | Measured frame | Add to reach UTC |
+|---|---|---|---|
+| TP Phase 1 5/7/10/15 m (Nov 2023, `MOP586_*_20240213/14`) | AA400 .log | local PST, lag +8 (r 0.88–0.99 vs concurrent TOR23W) | **+8** |
+| Solana Jan 2024 (`MOP654_7m_20240119`) | AA400 .log | local PST, lag +8 (r 0.997 vs SOL23) | **+8** |
+| SIO MOP511 6 m (2024–2026) | AA400 .log | UTC, lag 0 (r up to 0.99) | **0** |
+| TP MOP586 redeploys (`*_20241122`, `*_20250305`) | AA400 .log | UTC, lag 0 (r 0.92–0.99) | **0** |
+| All `.BIN` echosounders (SOL + TP Phase 2+) | EA400 .BIN | UTC+7/+8 over-offset (r up to 0.998) | **0** (stop adding offset) |
+
+Caveats: (1) the Nov-2023 local altimeters span the Mar-2024 DST change;
+a fixed +8 is correct if the instrument clock did not auto-adjust
+(typical) — verify by cross-correlating their post-March tail separately.
+(2) The SIO `.log` echosounders (text, not `.BIN`) were not covered by
+this sweep and need their own check before reprocessing.
+(3) Deployments with no co-located/overlapping PUV could not be verified
+directly; infer their offset from the same-instrument pattern (e.g. SIO
+gaps → UTC; un-paired `.BIN` echosounders → over-offset).
 
 ### Fix plan (for the next focused effort)
 
-1. **Per-deployment verification.** Because the notes don't confirm
-   uniformity, run the temperature cross-correlation for *every*
-   altimeter and echosounder deployment that has a co-located PUV, to
-   confirm each one's actual offset before applying a blanket rule. Flag
-   any deployment that deviates from the expected frame.
-2. **Fix the readers so both output UTC:**
-   - `read_echosounder_bin.m` (and check `read_echosounder_log.m` for the
-     SIO text echosounders): do **not** add `TimeOffsetHours` to posix-UTC
-     times. Either drop the offset for `.BIN` posix sources or set the
-     config `tz_offset_hours` semantics explicitly to "0 for UTC sources."
-   - `read_rangelogger_log.m`: **convert local→UTC.** Preferred: interpret
-     the `.log` clock as `America/Los_Angeles` (DST-aware) then convert to
-     UTC, rather than a fixed per-deployment offset — but only if the AA400
-     clock followed civil local time (PST in winter, PDT in summer). If a
-     given instrument's clock was set once to a fixed offset, a single
-     deployment crossing a DST boundary would be ~1 h off; per-deployment
-     verification (step 1) will catch this.
+1. **Per-deployment verification.** [DONE 2026-05-20 — see "Verified
+   offset table" above.] Confirmed the altimeter convention is NOT
+   uniform (Nov-2023 = local PST, 2024+ = UTC) and all `.BIN`
+   echosounders are over-offset. Still TODO: the SIO `.log` echosounders
+   and the post-March tail of the Nov-2023 altimeters (DST check).
+2. **Adopt one canonical convention:** define `tz_offset_hours` as
+   "hours to ADD to the raw instrument time to get UTC," and make BOTH
+   readers apply it (currently `read_rangelogger_log` ignores it and the
+   echosounder readers apply it). Then set each deployment's value from
+   the verified table:
+   - Nov-2023 local altimeters → **+8**
+   - 2024+ UTC altimeters (SIO, TP redeploys) → **0**
+   - all `.BIN` echosounders (posix already UTC) → **0**
+   This makes `read_echosounder_bin.m` stop double-offsetting and
+   `read_rangelogger_log.m` correctly convert the local Nov-2023 clocks.
+   (Earlier idea of America/Los_Angeles DST-aware tagging is rejected:
+   fixed per-deployment offsets are correct because the instrument clocks
+   were set once and don't auto-DST. The only residual risk is a Nov-2023
+   deployment whose span crosses the Mar-2024 DST change being ~1 h off
+   in its post-March tail; the DST check in step 1's TODO settles it.)
 3. **Decide one canonical frame: UTC throughout** (matches the PUV
    pipeline, which now emits tz-aware UTC).
 4. **Reprocess** all deployments (L1→L3) and **rebuild** all L4 products
