@@ -30,12 +30,33 @@ Two instruments are used, both manufactured by **Echologger** (EofE Ultrasonics 
 | Site | MOP | Depths | Period | Altimeter | Echosounder Format |
 |------|-----|--------|--------|-----------|-------------------|
 | South SIO Pier | MOP511 | 6 m | Apr 2024 -- Mar 2026 | AA400 | `.log` (text) |
-| Torrey Pines | MOP586 | 5, 7, 10 m | Jul 2024 -- Jun 2025 | AA400 | `.BIN` (binary) |
+| Torrey Pines | MOP586 | 5, 7, 10, 15 m | Nov 2023 -- Jun 2025 | AA400 | `.BIN` (binary) |
 | Solana Beach | MOP654 | 7 m | Nov 2024 -- Feb 2026 | AA400 | `.BIN` (binary) |
 
 Raw data lives on the lab server at: `/Volumes/group/Altimeter_data/`
 
 Subdirectories: `SouthSIOPier/data/`, `TorreyPines/`, `SolanaBeach/`
+
+**Torrey Pines coverage note (verified 2026-05-20):** the TP24 "Phase 1"
+altimeter deployment at all four depths (5/7/10/15 m) records continuously
+from **~13 November 2023** through June 2024, despite the raw `.log` files
+being named with Jan--Feb 2024 dates (the filename reflects the service /
+download date, not the data start). Fall 2023 (pre-Jan 2024) has ~2,100--2,800
+valid burst-median samples per depth; the 7 m channel additionally has a sparse
+window in Jan--Mar 2024. After a Jul--Nov 2024 echosounder-only phase, altimeter
++ echosounder coverage resumes Nov 2024 -- Jun 2025. The 15 m channel was
+deployed only during Phase 1 (pulled Aug 2024) plus a short Nov--Dec 2024
+redeployment.
+
+**Source of truth (important):** the canonical deployment registry that
+produces the current `outputs/` is the **config registry**
+(`config/deployment_registry.m` → `TP24_config.m` etc.), run via
+`run_all_and_plot.m`. The flat `metadata/deployments.csv` is a *legacy*
+parallel registry consumed by the older `run_altimeter_pipeline.m`
+orchestrator; it does not group the multi-depth Phase 1 altimeters into
+deployments the way the config does. The CSV has been reconciled (depths
+assigned from sensor IDs) for documentation accuracy, but the config
+registry remains authoritative.
 
 ## Pipeline Stages
 

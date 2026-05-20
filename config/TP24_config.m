@@ -8,9 +8,15 @@ function cfg = TP24_config()
 
     k = 0;
 
-    %% Phase 1: Altimeters only (Feb - Aug 2024)
+    %% Phase 1: Altimeters only (deployed ~Nov 2023, recovered Aug 2024)
     %  Sensor IDs: 0127=5m, 0128=7m, 0130=10m, 0131=15m
-    %  Firmware bug: altimeters overwritten with Error-3, data missing before ~Apr 24
+    %  Coverage (verified 2026-05-20 from outputs/all L3): despite an Error-3
+    %  firmware concern noted at recovery, the processed burst-median record
+    %  retains valid data from ~13 Nov 2023 onward at all four depths
+    %  (~2100-2800 fall-2023 samples each). The .log filenames carry the
+    %  Jan-Feb 2024 service/download date, not the data start date. The 7m
+    %  channel has a sparse window in Jan-Mar 2024 (~540 valid samples);
+    %  the other depths are well-sampled across that period.
 
     k = k + 1;
     cfg.deployments(k).label            = 'MOP586_5m_20240214';
@@ -19,7 +25,7 @@ function cfg = TP24_config()
                                            '20240513_171949_RANGELOGGER450kHz_ID_0127.log'};
     cfg.deployments(k).echosounderFiles = {};
     cfg.deployments(k).tz_offset_hours  = 7;
-    cfg.deployments(k).notes            = 'firmware bug lost data before ~Apr 24; 5m recovered May 13 (pipe exposed)';
+    cfg.deployments(k).notes            = 'record from ~13 Nov 2023; well-sampled fall 2023-Mar 2024; 5m recovered/redeployed May 13 2024 (pipe exposed)';
 
     k = k + 1;
     cfg.deployments(k).label            = 'MOP586_7m_20240213';
@@ -28,7 +34,7 @@ function cfg = TP24_config()
                                            '20240814_111056_RANGELOGGER450kHz_ID_0128.log'};
     cfg.deployments(k).echosounderFiles = {};
     cfg.deployments(k).tz_offset_hours  = 7;
-    cfg.deployments(k).notes            = 'firmware bug lost data before ~Apr 24; recovered Aug 14 2024';
+    cfg.deployments(k).notes            = 'record from ~13 Nov 2023; sparse window Jan-Mar 2024 (~540 valid samples); recovered Aug 14 2024';
 
     k = k + 1;
     cfg.deployments(k).label            = 'MOP586_10m_20240213';
@@ -37,7 +43,7 @@ function cfg = TP24_config()
                                            '20240814_100146_RANGELOGGER450kHz_ID_0130.log'};
     cfg.deployments(k).echosounderFiles = {};
     cfg.deployments(k).tz_offset_hours  = 7;
-    cfg.deployments(k).notes            = 'firmware bug lost data before ~Apr 24; recovered Aug 14 2024';
+    cfg.deployments(k).notes            = 'record from ~13 Nov 2023; well-sampled fall 2023-Mar 2024; recovered Aug 14 2024';
 
     k = k + 1;
     cfg.deployments(k).label            = 'MOP586_15m_20240213';
@@ -46,7 +52,7 @@ function cfg = TP24_config()
                                            '20240813_112413_RANGELOGGER450kHz_ID_0131.log'};
     cfg.deployments(k).echosounderFiles = {};
     cfg.deployments(k).tz_offset_hours  = 7;
-    cfg.deployments(k).notes            = 'firmware bug lost data before ~Apr 24; recovered Aug 13; 15m pulled after this';
+    cfg.deployments(k).notes            = 'record from ~16 Nov 2023; well-sampled fall 2023-Mar 2024; recovered Aug 13 2024; 15m pulled after this';
 
     %% Phase 2: Echosounders (Jul 26 - Nov 2024)
     %  3 EA400 echosounders replaced altimeters at 5m, 7m, 10m

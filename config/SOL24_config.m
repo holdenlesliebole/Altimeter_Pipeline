@@ -9,12 +9,12 @@ function cfg = SOL24_config()
     k = 0;
 
     k = k + 1;
-    cfg.deployments(k).label            = 'MOP654_0m_20240119';
-    cfg.deployments(k).depth_m          = 0;
+    cfg.deployments(k).label            = 'MOP654_7m_20240119';
+    cfg.deployments(k).depth_m          = 7;
     cfg.deployments(k).altimeterFiles   = {'20240119_162029_RANGELOGGER450kHz_ID_0207.log'};
     cfg.deployments(k).echosounderFiles = {};
     cfg.deployments(k).tz_offset_hours  = 8;
-    cfg.deployments(k).notes            = 'early test deployment; depth unknown';
+    cfg.deployments(k).notes            = '7m at MOP654.5; co-located with SOL23 PUV (Nov 16 2023-Jan 18 2024); altimeter record spans Nov 14 2023-Jan 18 2024; depth confirmed 2026-05-20 from SOL23 PUV co-location (was logged as depth-unknown)';
 
     k = k + 1;
     cfg.deployments(k).label            = 'MOP654_7m_20241122';
