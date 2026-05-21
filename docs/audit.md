@@ -93,9 +93,45 @@ NOTE: TP Phase 1 deployment labels each chain TWO files with DIFFERENT
 offsets (`[+8, 0]`), so `tz_offset_hours` must be per-FILE, not a single
 scalar per deployment.
 
-Caveats: (1) Deployments with no co-located/overlapping PUV could not be
-verified directly; infer their offset from the same-instrument pattern
-(e.g. SIO gaps → UTC; un-paired `.BIN` echosounders → over-offset).
+Caveat — "no-PUV" means UNVERIFIED, not UNPROCESSABLE. Processing
+(L1/L2/L3) is fully PUV-independent: `process_deployment` reads, QCs, and
+derives bed level using only the config `tz_offset_hours` (a static value),
+never a PUV. PUV is used in exactly three places, none of which block
+processing: (i) the offline forensics that *determined* these offsets
+(one-time, done); (ii) the L4 PUV↔bed-level merge (by definition needs a
+PUV, so a no-PUV deployment just gets no L4 row — its bed-level data is
+intact); (iii) the cross-correlation *verification*. Deployments without an
+overlapping PUV are processed normally; their offset is set from the
+same-instrument pattern (all 2024+ altimeters = UTC = 0; `.BIN` = 0) and was
+firmed up with a PUV-independent diurnal-temperature-phase check (see
+"No-PUV diurnal confirmation" below). Going forward this disappears entirely
+once the clock convention is recorded at deployment (standard = UTC = 0).
+
+#### No-PUV diurnal confirmation (2026-05-20)
+
+PUV-independent cross-check of the 17 no-PUV / weak-r altimeter files
+(`verify_clock_offsets_perfile.m` companion `diurnal_confirm`): read each
+raw `.log`, take the month with the strongest diurnal temperature range,
+and read its peak hour in the naive instrument clock (UTC ⇒ peak ~21–03h
+= local afternoon + ~8 h; local ⇒ peak ~13–19h).
+
+- **11/17 confirm UTC** (peak 22–04h). Decisively so for every
+  strong-signal file (diurnal range > 2 °C): e.g. 20241202 (3.73 °C, 00h),
+  20240813 (3.09 °C, 23h), 20240919 (3.17 °C, 22h), 20250721 (3.34 °C, 23h),
+  20250821 (3.53 °C, 23h), 20260326 (2.10 °C, 03h).
+- **6/17 inconclusive** — all weak-winter signals (range ≤ 1.3 °C, at the
+  noise floor). Two peaked at 18–19h (nominally "local"), but with such
+  tiny amplitude in winter (when the diurnal cycle is minimal) this is
+  noise, not evidence of a local clock: they are bracketed by
+  confirmed-UTC deployments, and an instrument clock does not flip to local
+  for one winter month and back.
+
+**Conclusion:** the no-PUV deployments are confidently UTC where the signal
+is adequate; the weak-winter ones are non-contradicting and rest on the
+robust 2024+ UTC pattern (the clock was reset to UTC at the Feb-2024
+service and stayed there). All are set to offset 0, which is correct. This
+firms up the inference without changing any value. Tool:
+`CODES/diurnal_confirm.m`.
 
 #### TODO-1 RESOLVED (2026-05-20): SIO `.log` echosounders are tz-correct
 `read_echosounder_log.m` parses a `#TimeLocal` header (raw = local) and
