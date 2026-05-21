@@ -23,10 +23,21 @@ for c = 1:numel(names)
     fprintf('\n--- %s (%d deployments) ---\n', names{c}, numel(depCfg.deployments));
     for k = 1:numel(depCfg.deployments)
         dep = depCfg.deployments(k);
+        echoFiles = strjoin(string(dep.echosounderFiles),'|');
+        % SKIP SIO echosounders: they are multi-GB .log files (hours each to
+        % parse) AND need a separate local->UTC offset that the single
+        % per-deployment offset can't supply (the deployment's altimeter is
+        % UTC=0). They are a MOP511 side dataset that was not in the prior
+        % processed outputs anyway. Reprocess SIO altimeter-only here;
+        % handle SIO .log echosounders in a focused follow-up (ISSUE-001
+        % open item: add per-instrument tz_offset_hours_echo).
+        if string(depCfg.site) == "SouthSIOPier"
+            echoFiles = "";
+        end
         ds = struct('DeploymentID',string(dep.label),'Site',string(depCfg.site), ...
             'MOP',string(depCfg.mop),'Depth_m',dep.depth_m,'TZ_offset_hours',dep.tz_offset_hours, ...
             'AltimeterFiles',strjoin(string(dep.altimeterFiles),'|'), ...
-            'EchosounderFiles',strjoin(string(dep.echosounderFiles),'|'));
+            'EchosounderFiles',echoFiles);
         cR = cfg; cR.serverRoot = dataRoot;
         try
             r = process_deployment(ds, cR);

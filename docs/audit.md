@@ -133,6 +133,39 @@ service and stayed there). All are set to offset 0, which is correct. This
 firms up the inference without changing any value. Tool:
 `CODES/diurnal_confirm.m`.
 
+#### OPEN FOLLOW-UP (2026-05-21): SIO `.log` echosounders need per-instrument offset
+
+The ISSUE-001 reprocess (`run_full_reprocess.m`) **skips the SIO echosounders**
+and reprocesses SIO altimeter-only, for two reasons: (a) the SIO echosounder
+`.log` files are multi-GB text (hours each to parse — they were the cause of
+the ~16 h stall on the first reprocess attempt); (b) a SIO deployment pairs a
+**UTC altimeter** (`tz_offset_hours = 0`) with a **local `.log` echosounder**
+(`#TimeLocal` → needs +7/+8 to reach UTC), so a single per-deployment offset
+cannot serve both. SIO echosounders were not in the prior processed outputs
+anyway (MOP511 side dataset), so nothing is lost by deferring them.
+
+**Fix design (ready to execute after the main reprocess):**
+1. **Add a per-instrument echosounder offset.** New optional config field
+   `tz_offset_hours_echo` (scalar or per-file). In `process_deployment`, the
+   echosounder read loop uses `tz_offset_hours_echo` if present, else falls
+   back to `tz_offset_hours`. (Altimeter loop keeps using `tz_offset_hours`.)
+   This is the single code change; everything else is config + a reprocess.
+2. **Set SIO `tz_offset_hours_echo` per deployment season** (local→UTC):
+   +8 for PST-period deployments (~Nov–Mar), +7 for PDT (~Mar–Nov). `.BIN`
+   echosounders need no field (the reader ignores offset for posix-UTC).
+3. **Reprocess SIO with echosounders** as its own background job (slow:
+   GB `.log` parsing, hours). This regenerates the SIO L1 to include the
+   echosounder backscatter alongside the (already-correct) altimeter.
+4. **VERIFY the SIO echosounder convention empirically** — it is currently
+   *assumed* local from the `#TimeLocal` header but never measured. Once
+   processed, cross-correlate the SIO echosounder temperature vs the SIO PUV
+   (`verify_clock_offsets_perfile.m`); a clean lag 0 confirms the +7/+8 was
+   right. If it lands at +7/+8, the raw `.log` was actually UTC (not local)
+   and the offset should be 0 instead — adjust and re-run.
+
+Not blocking the main fix. The science-critical Torrey/Solana data
+(altimeters + `.BIN` echosounders) is fully handled by the main reprocess.
+
 #### TODO-1 RESOLVED (2026-05-20): SIO `.log` echosounders are tz-correct
 `read_echosounder_log.m` parses a `#TimeLocal` header (raw = local) and
 **does** add `TimeOffsetHours` (lines 108-109) → local + offset = UTC.
