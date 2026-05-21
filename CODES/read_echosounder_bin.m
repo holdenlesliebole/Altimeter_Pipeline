@@ -113,15 +113,19 @@ pitch_deg   = local_float32_at(recMatrix, statCol + 25);  % STAT +24
 roll_deg    = local_float32_at(recMatrix, statCol + 29);  % STAT +28
 
 %% -- Build output struct --------------------------------------------------
-% Convert unix timestamps to datetime
+% Convert unix timestamps to datetime. .BIN records store POSIX/Unix
+% timestamps, which are UTC by definition regardless of the instrument's
+% display-clock setting. We therefore do NOT apply TimeOffsetHours here:
+% doing so double-counts (the historical ISSUE-001 bug that pushed echosounder
+% times to UTC+7/+8). The TimeOffsetHours argument is accepted for interface
+% compatibility but intentionally ignored for .BIN posix sources.
 t = datetime(double(timestamps), 'ConvertFrom', 'posixtime', 'TimeZone', 'UTC');
-
-% Apply time offset
 if opts.TimeOffsetHours ~= 0
-    t = t + hours(opts.TimeOffsetHours);
+    warning('read_echosounder_bin:offsetIgnored', ...
+        '.BIN posix timestamps are UTC; ignoring TimeOffsetHours=%g.', opts.TimeOffsetHours);
 end
 
-% Set to naive datetime (no time zone), matching read_echosounder_log behavior
+% Set to naive datetime (no time zone), in UTC, matching the altimeter path.
 t.TimeZone = "";
 
 E = struct();

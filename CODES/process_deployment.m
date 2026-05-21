@@ -37,6 +37,10 @@ end
 fprintf("Processing: %s\n", dep.DeploymentID);
 
 %% -- L1: Read altimeter (RangeLogger .log) --------------------------------
+% tz_offset_hours = hours to ADD to the raw instrument clock to reach UTC.
+% May be a scalar (applied to every file) or a per-file vector (matching the
+% file list) for deployments that chain files with different clock
+% conventions (e.g. a Nov-2023 local file + a post-service UTC file).
 altList = local_split_paths(dep.AltimeterFiles);
 TTa = timetable();
 hasAltimeter = false;
@@ -46,7 +50,8 @@ for i = 1:numel(altList)
         warning("process_deployment: altimeter file not found:\n  %s", fpath);
         continue
     end
-    TT  = read_rangelogger_log(fpath);
+    off = local_file_offset(dep.TZ_offset_hours, i);
+    TT  = read_rangelogger_log(fpath, "TimeOffsetHours", off);
     TTa = [TTa; TT]; %#ok<AGROW>
     hasAltimeter = true;
 end
@@ -65,12 +70,13 @@ for i = 1:numel(echoList)
         continue
     end
     [~, ~, ext] = fileparts(fpath);
+    offE = local_file_offset(dep.TZ_offset_hours, i);
     if strcmpi(ext, ".log")
-        Ei   = read_echosounder_log(fpath, "TimeOffsetHours", dep.TZ_offset_hours);
+        Ei   = read_echosounder_log(fpath, "TimeOffsetHours", offE);
         Eall = local_concat_echosounder(Eall, Ei);
         hasEcho = true;
     elseif strcmpi(ext, ".bin")
-        Ei   = read_echosounder_bin(fpath, "TimeOffsetHours", dep.TZ_offset_hours);
+        Ei   = read_echosounder_bin(fpath, "TimeOffsetHours", offE);
         Eall = local_concat_echosounder(Eall, Ei);
         hasEcho = true;
     else
@@ -172,6 +178,20 @@ end
 parts = strtrim(strsplit(s, "|"));
 parts = parts(~cellfun(@isempty, parts));
 parts = parts(~strcmp(parts, ""));
+end
+
+function off = local_file_offset(tzOffset, i)
+%LOCAL_FILE_OFFSET  Resolve the per-file tz offset (hours to add -> UTC).
+% tzOffset may be a scalar (broadcast to every file) or a vector matching
+% the file list (per-file offsets for deployments that chain files with
+% different clock conventions).
+if isscalar(tzOffset)
+    off = tzOffset;
+elseif i <= numel(tzOffset)
+    off = tzOffset(i);
+else
+    off = tzOffset(end);
+end
 end
 
 function Eout = local_concat_echosounder(Eall, Ei)

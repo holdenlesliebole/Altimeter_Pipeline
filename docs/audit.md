@@ -62,15 +62,36 @@ temperature vs the highest-correlation PUV `Tmean` (UTC). Results below.
   campaign set clocks to local Pacific; 2024-onward deployments used UTC.
   So there is no single altimeter rule; the fix is per-deployment.
 
-#### Verified offset table (reliable rows, r > 0.6)
+#### Verified PER-FILE offset map (cross-correlation, r > 0.6; finalized 2026-05-20)
 
-| Deployment group | Instr | Measured frame | Add to reach UTC |
-|---|---|---|---|
-| TP Phase 1 5/7/10/15 m (Nov 2023, `MOP586_*_20240213/14`) | AA400 .log | local PST, lag +8 (r 0.88–0.99 vs concurrent TOR23W) | **+8** |
-| Solana Jan 2024 (`MOP654_7m_20240119`) | AA400 .log | local PST, lag +8 (r 0.997 vs SOL23) | **+8** |
-| SIO MOP511 6 m (2024–2026) | AA400 .log | UTC, lag 0 (r up to 0.99) | **0** |
-| TP MOP586 redeploys (`*_20241122`, `*_20250305`) | AA400 .log | UTC, lag 0 (r 0.92–0.99) | **0** |
-| All `.BIN` echosounders (SOL + TP Phase 2+) | EA400 .BIN | UTC+7/+8 over-offset (r up to 0.998) | **0** (stop adding offset) |
+The shift is BETWEEN raw files (clock reset at the Feb-2024 service), not
+within a file — confirmed by reading the TP 5m raw files separately
+(file1 Nov2023–Feb13 = local; file2 Feb27–May = UTC). So the correction is
+**per raw `.log` file**. The complete map (offset = hours to ADD to raw →
+UTC):
+
+**Local PST → +8 (the 5 original Nov-2023 files only):**
+- `20240214_162515_..._0127.log` (TP 5m)   — lag +8, r 0.99
+- `20240119_151750_..._0128.log` (TP 7m)   — lag +8, r 0.88
+- `20240213_150935_..._0130.log` (TP 10m)  — lag +8, r 0.99
+- `20240213_164124_..._0131.log` (TP 15m)  — lag +8, r 0.99
+- `20240119_162029_..._0207.log` (Solana 7m) — lag +8, r 1.00
+
+**UTC → 0 (every other altimeter `.log` file):** all post-service TP
+file-2's (`20240513/0813/0814`, lag 0 r 0.59–0.98), all TP 2024+
+(`2025*`), and all SIO (lag 0, r up to 0.99 where a PUV overlaps;
+no-PUV files are all 2024+ and follow the same UTC pattern → 0).
+
+**Echosounders:**
+- `.BIN` (EA400, SOL + TP Phase 2+): posix is UTC → **0** (the reader was
+  wrongly adding +7/+8). Set all `.BIN` deployment offsets to 0.
+- `.log` (EA400, SIO text): raw is `#TimeLocal` → keep **+7/+8** (the reader
+  correctly adds it). Not currently in processed outputs (Eall empty), but
+  set correctly for any future reprocess.
+
+NOTE: TP Phase 1 deployment labels each chain TWO files with DIFFERENT
+offsets (`[+8, 0]`), so `tz_offset_hours` must be per-FILE, not a single
+scalar per deployment.
 
 Caveats: (1) Deployments with no co-located/overlapping PUV could not be
 verified directly; infer their offset from the same-instrument pattern

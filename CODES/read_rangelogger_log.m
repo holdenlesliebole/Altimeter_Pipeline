@@ -1,4 +1,4 @@
-function TT = read_rangelogger_log(filepath)
+function TT = read_rangelogger_log(filepath, opts)
 %READ_RANGELOGGER_LOG Read an Echologger AA400 RangeLogger *.log into a timetable.
 %
 % RangeLogger .log files have a variable-length device header (config dump)
@@ -11,6 +11,7 @@ function TT = read_rangelogger_log(filepath)
 
 arguments
     filepath (1,1) string
+    opts.TimeOffsetHours (1,1) double = 0   % hours to ADD to raw clock to reach UTC
 end
 
 fid = fopen(filepath, 'r');
@@ -92,6 +93,12 @@ end
 
 t = datetime(tStr, "InputFormat", "yyyyMMdd HH:mm:ss.SSS");
 t.TimeZone = "";
+% Convert the raw instrument clock to UTC. AA400 .log clocks were set to
+% civil-local in the Nov-2023 campaign (TimeOffsetHours = +8/+7) and to UTC
+% from 2024 on (TimeOffsetHours = 0). The output is tz-naive but in UTC.
+if opts.TimeOffsetHours ~= 0
+    t = t + hours(opts.TimeOffsetHours);
+end
 
 % Altitude (required)
 altIdx = findCol("Altitude");

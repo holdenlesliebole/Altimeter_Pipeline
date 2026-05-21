@@ -92,6 +92,14 @@ for p = 1:numel(opts.pvuDeployments)
 
     S2 = load(l2File); L2 = S2.L2;
 
+    % PUV L2 times are tz-aware UTC; the chained altimeter times are tz-naive
+    % but in UTC (the L1 readers convert raw->UTC). Strip the PUV zone so the
+    % two are directly comparable (both naive-UTC). Both represent UTC, so
+    % this is a label-only operation, not a value shift.
+    if ~isempty(L2.time.TimeZone)
+        L2.time.TimeZone = '';
+    end
+
     if isfile(l3File)
         S3 = load(l3File); L3 = S3.L3;
     else
