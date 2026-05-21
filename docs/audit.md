@@ -144,27 +144,52 @@ the ~16 h stall on the first reprocess attempt); (b) a SIO deployment pairs a
 cannot serve both. SIO echosounders were not in the prior processed outputs
 anyway (MOP511 side dataset), so nothing is lost by deferring them.
 
-**Fix design (ready to execute after the main reprocess):**
-1. **Add a per-instrument echosounder offset.** New optional config field
-   `tz_offset_hours_echo` (scalar or per-file). In `process_deployment`, the
-   echosounder read loop uses `tz_offset_hours_echo` if present, else falls
-   back to `tz_offset_hours`. (Altimeter loop keeps using `tz_offset_hours`.)
-   This is the single code change; everything else is config + a reprocess.
-2. **Set SIO `tz_offset_hours_echo` per deployment season** (local→UTC):
-   +8 for PST-period deployments (~Nov–Mar), +7 for PDT (~Mar–Nov). `.BIN`
-   echosounders need no field (the reader ignores offset for posix-UTC).
+**Per-instrument echosounder offset — IMPLEMENTED (2026-05-21):**
+1. **Per-instrument echosounder offset is now in place.** Optional config
+   field `tz_offset_hours_echo` (scalar or per-file). In `process_deployment`,
+   the echosounder read loop uses `tz_offset_hours_echo` if present, **else
+   defaults to 0 — it does NOT inherit `tz_offset_hours`** (inheriting would
+   re-create the over-offset bug for UTC `.BIN` files paired with a local
+   altimeter). `read_echosounder_bin` now *applies* a nonzero offset (it
+   previously warned-and-ignored); default 0 is a no-op for the posix-UTC
+   common case. The altimeter loop still uses `tz_offset_hours`.
+2. **To enable SIO `.log` echosounders, set their `tz_offset_hours_echo`**
+   per deployment season (local→UTC): +8 for PST (~Nov–Mar), +7 for PDT
+   (~Mar–Nov). `.BIN` echosounders keep the field at 0 (or omit it).
 3. **Reprocess SIO with echosounders** as its own background job (slow:
-   GB `.log` parsing, hours). This regenerates the SIO L1 to include the
-   echosounder backscatter alongside the (already-correct) altimeter.
+   GB `.log` parsing, hours). Regenerates the SIO L1 to include echosounder
+   backscatter alongside the (already-correct) altimeter.
 4. **VERIFY the SIO echosounder convention empirically** — it is currently
    *assumed* local from the `#TimeLocal` header but never measured. Once
    processed, cross-correlate the SIO echosounder temperature vs the SIO PUV
-   (`verify_clock_offsets_perfile.m`); a clean lag 0 confirms the +7/+8 was
-   right. If it lands at +7/+8, the raw `.log` was actually UTC (not local)
-   and the offset should be 0 instead — adjust and re-run.
+   (`verify_issue001.m`); a clean lag 0 confirms the +7/+8 was right. If it
+   lands at +7/+8, the raw `.log` was actually UTC (not local) and the offset
+   should be 0 — adjust and re-run.
 
 Not blocking the main fix. The science-critical Torrey/Solana data
 (altimeters + `.BIN` echosounders) is fully handled by the main reprocess.
+
+#### FINAL VERIFICATION — OVERALL PASS (2026-05-21)
+
+`verify_issue001.m` cross-correlates every reprocessed instrument temperature
+against the co-located PUV and writes `outputs/ISSUE001_verification_report.txt`.
+Final result: **28 PASS, 0 FAIL, 21 weak/no-PUV.** Every deployment with a
+verifiable PUV temperature signal reads UTC at lag 0 across all three sites.
+
+Two failures surfaced during verification and were both resolved:
+- **`MOP654_0m_20240119` (lag +8)** — a stale orphan from the pre-fix run
+  (mislabeled 0 m; correct sibling is `MOP654_7m_20240119`, lag 0). Deleted
+  its L1/L2/L3; not in the rebuilt L4.
+- **`MOP654_7m_20250409` echo (lag −7)** — initially misread as an instrument
+  RTC error. Root cause was a **stale L1**: the overnight reprocess used the
+  local `raw_cache/SOL25/` folder, which held only 1 of 4 files, so three SOL25
+  deployments were silently skipped and kept old L1s (the 20250409 L1 carried
+  a +7 from earlier processing). A fresh server read at offset 0 gives the
+  filename time exactly (= UTC) and passes at lag 0. Fix: reprocessed SOL25
+  from the server, and added a **cache-completeness guard** to
+  `run_full_reprocess.m` (use a raw_cache folder only if it holds *every* file
+  the config references; otherwise read from the server). This prevents a
+  partial cache from silently leaving deployments stale in a future lab run.
 
 #### TODO-1 RESOLVED (2026-05-20): SIO `.log` echosounders are tz-correct
 `read_echosounder_log.m` parses a `#TimeLocal` header (raw = local) and

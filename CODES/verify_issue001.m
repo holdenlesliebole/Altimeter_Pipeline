@@ -1,81 +1,13 @@
-% RUN_FULL_REPROCESS  Regenerate all L1/L2/L3 with the corrected timezone
-% handling (ISSUE-001 fix), rebuild all L4, then VERIFY (cross-correlate the
-% reprocessed instrument temperature vs co-located PUV; all should now read
-% UTC = lag 0). Writes a PASS/FAIL report so the run is fully self-contained
-% (no separate command needed afterward). overwrite=true replaces stale data.
+% VERIFY_ISSUE001  Standalone verification sweep for the ISSUE-001 timezone fix.
+% Reads the (already reprocessed) L1 instrument temperatures and the co-located
+% PUV temperatures, cross-correlates hourly, and writes a PASS/FAIL report.
+% Every reliable (r>0.6) row should now read lag 0 (UTC).
 clear; clc;
 codeDir = fileparts(mfilename('fullpath'));
-addpath(codeDir); addpath(fullfile(codeDir,'..','config'));
-addpath('/Users/holden/Documents/Scripps/Research/toolbox');
-addpath('/Users/holden/Documents/Scripps/Research/Beach_Change_Observation/mop');
+addpath(codeDir);
 outRoot = fullfile(codeDir,'..','outputs','all');
 reportPath = fullfile(codeDir,'..','outputs','ISSUE001_verification_report.txt');
 
-%% ===== 1. Reprocess all deployments (overwrite=true) =====
-cfg = struct('qcParams',struct(),'savePlots',false,'overwrite',true,'outputRoot',outRoot);
-reg = deployment_registry(); names = keys(reg);
-fprintf('=== Reprocessing %d config groups (overwrite=true) ===\n', numel(names));
-nDone=0; nFail=0;
-for c = 1:numel(names)
-    fn = reg(names{c}); depCfg = fn();
-    % Use the local raw_cache ONLY if it holds EVERY file this config
-    % references. A partial cache silently skips the missing files and keeps
-    % stale L1s (this bit SOL25: cache had 1 of 4 files, so 3 deployments were
-    % never reprocessed). When incomplete, read from the server instead.
-    localCache = fullfile(codeDir,'..','raw_cache',depCfg.name);
-    dataRoot = depCfg.rawDataRoot;
-    if isfolder(localCache)
-        need = {};
-        for kk = 1:numel(depCfg.deployments)
-            need = [need, depCfg.deployments(kk).altimeterFiles, depCfg.deployments(kk).echosounderFiles]; %#ok<AGROW>
-        end
-        haveAll = ~isempty(need);
-        for kk = 1:numel(need)
-            if ~isfile(fullfile(localCache, need{kk})); haveAll = false; break; end
-        end
-        if haveAll
-            dataRoot = localCache;
-        else
-            fprintf('  [cache incomplete for %s -> using server]\n', depCfg.name);
-        end
-    end
-    fprintf('\n--- %s (%d deployments) ---\n', names{c}, numel(depCfg.deployments));
-    for k = 1:numel(depCfg.deployments)
-        dep = depCfg.deployments(k);
-        echoFiles = strjoin(string(dep.echosounderFiles),'|');
-        % SKIP SIO echosounders: they are multi-GB .log files (hours each to
-        % parse) AND need a separate local->UTC offset that the single
-        % per-deployment offset can't supply (the deployment's altimeter is
-        % UTC=0). They are a MOP511 side dataset that was not in the prior
-        % processed outputs anyway. Reprocess SIO altimeter-only here;
-        % handle SIO .log echosounders in a focused follow-up (ISSUE-001
-        % open item: add per-instrument tz_offset_hours_echo).
-        if string(depCfg.site) == "SouthSIOPier"
-            echoFiles = "";
-        end
-        if isfield(dep,'tz_offset_hours_echo'); offEcho = dep.tz_offset_hours_echo; else; offEcho = 0; end
-        ds = struct('DeploymentID',string(dep.label),'Site',string(depCfg.site), ...
-            'MOP',string(depCfg.mop),'Depth_m',dep.depth_m,'TZ_offset_hours',dep.tz_offset_hours, ...
-            'TZ_offset_hours_echo',offEcho, ...
-            'AltimeterFiles',strjoin(string(dep.altimeterFiles),'|'), ...
-            'EchosounderFiles',echoFiles);
-        cR = cfg; cR.serverRoot = dataRoot;
-        try
-            r = process_deployment(ds, cR);
-            if r ~= "skip"; nDone = nDone + 1; end
-        catch ME
-            fprintf('  FAIL %s: %s\n', dep.label, ME.message); nFail = nFail + 1;
-        end
-    end
-end
-fprintf('\n=== Reprocess complete: %d done, %d failed ===\n', nDone, nFail);
-
-%% ===== 2. Rebuild all L4 =====
-fprintf('\n=== Rebuilding L4 (run_L4) ===\n');
-try; run(fullfile(codeDir,'run_L4.m')); catch ME; fprintf('run_L4 FAILED: %s\n', ME.message); end
-
-%% ===== 3. VERIFY: reprocessed temps should read UTC (lag 0) vs PUV =====
-fprintf('\n=== Verifying timezone consistency (expect all lag 0) ===\n');
 sites(1)=struct('tag','SouthSIOPier','puv',{{'SIO24A','SIO24B','SIO24C','SIO25A','SIO25B','SIO25C','SIO25D','SIO25E'}});
 sites(2)=struct('tag','TorreyPines', 'puv',{{'TBR23','TOR23W','TOR24S','TOR24W','TOR25S'}});
 sites(3)=struct('tag','SolanaBeach', 'puv',{{'SOL23','SOL24','SOL25A','SOL25B'}});
@@ -87,7 +19,6 @@ fprintf(fid,'Expect every reliable (r>0.6) row to read lag 0 (UTC).\n\n');
 fprintf(fid,'%-34s %-5s %5s %5s  %s\n','deployment','instr','lag','r','result');
 nPass=0; nFailV=0; nWeak=0;
 for s=1:numel(sites)
-    % preload site PUVs
     recs={};
     for j=1:numel(sites(s).puv)
         dd=dir(fullfile(puvL2,sites(s).puv{j},'*_L2.mat'));
@@ -121,7 +52,6 @@ for s=1:numel(sites)
         end
     end
 end
-% L4_SOL deployment-id sanity
 try
     E=load(fullfile(codeDir,'..','outputs','L4','L4_SOL_7m.mat')); u=unique(string(E.L4.deploymentID));
     fprintf(fid,'\nL4_SOL deployments: %s\n', strjoin(cellstr(u),' | '));
@@ -131,10 +61,9 @@ catch ME; fprintf(fid,'L4_SOL check failed: %s\n', ME.message); end
 fprintf(fid,'\nSUMMARY: %d PASS, %d FAIL, %d weak/no-PUV.\n', nPass, nFailV, nWeak);
 if nFailV==0; fprintf(fid,'OVERALL: PASS (no UTC failures)\n'); else; fprintf(fid,'OVERALL: FAIL (%d failures)\n', nFailV); end
 fclose(fid);
-fprintf('\n=== DONE. Verification report: %s ===\n', reportPath);
+fprintf('\n=== DONE. Report: %s ===\n', reportPath);
 fprintf('SUMMARY: %d PASS, %d FAIL, %d weak/no-PUV\n', nPass, nFailV, nWeak);
 
-%% ----- local cross-correlation helper -----
 function [lag,best]=xc(t,T,recs)
     [uA,~,iA]=unique(dateshift(t,'start','hour')); mA=accumarray(iA,T,[],@mean);
     best=-inf; lag=NaN;

@@ -114,19 +114,21 @@ roll_deg    = local_float32_at(recMatrix, statCol + 29);  % STAT +28
 
 %% -- Build output struct --------------------------------------------------
 % Convert unix timestamps to datetime. .BIN records store POSIX/Unix
-% timestamps, which are UTC by definition regardless of the instrument's
-% display-clock setting. We therefore do NOT apply TimeOffsetHours here:
-% doing so double-counts (the historical ISSUE-001 bug that pushed echosounder
-% times to UTC+7/+8). The TimeOffsetHours argument is accepted for interface
-% compatibility but intentionally ignored for .BIN posix sources.
+% timestamps, which are UTC for a correctly-set instrument clock, so
+% TimeOffsetHours defaults to 0 and the common case is a no-op. A nonzero
+% offset is applied only as a verified per-deployment correction for an
+% instrument whose RTC was demonstrably set wrong (caught by temperature
+% cross-correlation vs the co-located PUV). It is supplied via
+% dep.TZ_offset_hours_echo, which is decoupled from the altimeter offset so
+% UTC .BIN files are never shifted by the altimeter's local-clock correction
+% (the historical ISSUE-001 over-offset bug).
 t = datetime(double(timestamps), 'ConvertFrom', 'posixtime', 'TimeZone', 'UTC');
-if opts.TimeOffsetHours ~= 0
-    warning('read_echosounder_bin:offsetIgnored', ...
-        '.BIN posix timestamps are UTC; ignoring TimeOffsetHours=%g.', opts.TimeOffsetHours);
-end
 
 % Set to naive datetime (no time zone), in UTC, matching the altimeter path.
 t.TimeZone = "";
+if opts.TimeOffsetHours ~= 0
+    t = t + hours(opts.TimeOffsetHours);
+end
 
 E = struct();
 E.time          = t;

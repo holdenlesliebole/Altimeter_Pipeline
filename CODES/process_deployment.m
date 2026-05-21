@@ -60,7 +60,19 @@ if hasAltimeter
 end
 
 %% -- L1: Read echosounder (.log or .BIN) -- optional ---------------------
+% Echosounder clock offset is INDEPENDENT of the altimeter offset. .BIN posix
+% timestamps are UTC by default (offset 0), but some instruments recorded a
+% wrong RTC (verified per-deployment by temperature cross-correlation vs the
+% co-located PUV), and .log echosounders store a local display clock. The
+% per-deployment correction lives in dep.TZ_offset_hours_echo; it defaults to
+% 0 and does NOT inherit the altimeter's TZ_offset_hours (which would re-create
+% the historical echosounder over-offset bug for UTC .BIN files).
 echoList    = local_split_paths(dep.EchosounderFiles);
+if isfield(dep, "TZ_offset_hours_echo") && ~isempty(dep.TZ_offset_hours_echo)
+    echoOffsetSpec = dep.TZ_offset_hours_echo;
+else
+    echoOffsetSpec = 0;
+end
 Eall        = [];
 hasEcho     = false;
 for i = 1:numel(echoList)
@@ -70,7 +82,7 @@ for i = 1:numel(echoList)
         continue
     end
     [~, ~, ext] = fileparts(fpath);
-    offE = local_file_offset(dep.TZ_offset_hours, i);
+    offE = local_file_offset(echoOffsetSpec, i);
     if strcmpi(ext, ".log")
         Ei   = read_echosounder_log(fpath, "TimeOffsetHours", offE);
         Eall = local_concat_echosounder(Eall, Ei);
