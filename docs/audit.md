@@ -133,6 +133,22 @@ service and stayed there). All are set to offset 0, which is correct. This
 firms up the inference without changing any value. Tool:
 `CODES/diurnal_confirm.m`.
 
+#### SIO `.log` ECHOSOUNDERS — RESOLVED (2026-05-21)
+
+The empirical convention check (the open question below) was answered by the
+file itself: each EA400 `.log` ping writes **both** `#TimeLocal` **and an
+explicit `#TimeUTC`**. So `read_echosounder_log.m` now reads `#TimeUTC`
+directly (instrument-authoritative UTC, DST-proof) — **no seasonal +7/+8
+offset is needed**; `tz_offset_hours_echo` stays 0 for SIO. The reader also now
+extracts `#Temperature` (for QC + cross-correlation verification) and was
+rewritten with a chunked, vectorized parse (bulk `sscanf` for backscatter):
+**~8.7× faster** (340 s → 39 s on the 483 MB test file; full SIO set ~2 h, down
+from the ~17 h that motivated deferring it). Validated against the prior
+line-by-line output: backscatter, temperature, altitude, pitch/roll, and times
+all match exactly. `run_full_reprocess.m` no longer skips SIO echosounders.
+
+Original follow-up spec (now superseded by the above) retained below for record:
+
 #### OPEN FOLLOW-UP (2026-05-21): SIO `.log` echosounders need per-instrument offset
 
 The ISSUE-001 reprocess (`run_full_reprocess.m`) **skips the SIO echosounders**

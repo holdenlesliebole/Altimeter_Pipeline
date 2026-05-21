@@ -43,16 +43,9 @@ for c = 1:numel(names)
     for k = 1:numel(depCfg.deployments)
         dep = depCfg.deployments(k);
         echoFiles = strjoin(string(dep.echosounderFiles),'|');
-        % SKIP SIO echosounders: they are multi-GB .log files (hours each to
-        % parse) AND need a separate local->UTC offset that the single
-        % per-deployment offset can't supply (the deployment's altimeter is
-        % UTC=0). They are a MOP511 side dataset that was not in the prior
-        % processed outputs anyway. Reprocess SIO altimeter-only here;
-        % handle SIO .log echosounders in a focused follow-up (ISSUE-001
-        % open item: add per-instrument tz_offset_hours_echo).
-        if string(depCfg.site) == "SouthSIOPier"
-            echoFiles = "";
-        end
+        % SIO echosounders ARE included: read_echosounder_log now reads #TimeUTC
+        % directly (no offset needed) and uses a chunked vectorized parse (~8x
+        % faster), so the multi-GB SIO .log files are tractable (~2 h total).
         if isfield(dep,'tz_offset_hours_echo'); offEcho = dep.tz_offset_hours_echo; else; offEcho = 0; end
         ds = struct('DeploymentID',string(dep.label),'Site',string(depCfg.site), ...
             'MOP',string(depCfg.mop),'Depth_m',dep.depth_m,'TZ_offset_hours',dep.tz_offset_hours, ...
