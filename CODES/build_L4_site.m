@@ -349,6 +349,78 @@ fprintf('  Hs coverage: %d PUV + %d MOP gap-fill = %d/%d (%.0f%%)\n', ...
     sum(L4.puv_valid), sum(gapFilled), sum(~isnan(L4.Hs_combined)), nBursts, ...
     100*sum(~isnan(L4.Hs_combined))/nBursts);
 
+%% -- Continuous near-bed orbital velocity (Ub gap-fill) -------------------
+% Where PUV exists, L4.Ub is the measured sea-swell-band (0.04-0.25 Hz) rms
+% orbital velocity. In the gaps, reconstruct it from the MOP frequency
+% spectrum via linear theory: shoal MOP spec1D from the MOP reference depth
+% to the instrument nominal depth (energy-flux conservation), apply the
+% near-bed velocity transfer (2*pi*f/sinh(kh))^2 per frequency, integrate the
+% SS band. This spectral form matches the PUV's own-spectrum Ub at slope~1,
+% R2~0.99 (validated 2026-05-22 across all deployments); the MOP-driven
+% version validates at R2~0.7-0.9 (site-dependent; weakest at SIO/canyon),
+% so a per-site calibration slope (measured = calib * model, fit on the PUV
+% overlap) corrects the systematic bias before gap-filling.
+L4.mop_Ub        = nan(nBursts, 1);
+L4.Ub_calibration = NaN;
+hNom = NaN;
+if ~isempty(opts.depths) && isscalar(opts.depths), hNom = opts.depths; end
+if exist('MOP','var') && isstruct(MOP) && isfield(MOP,'spec1D') && ...
+        isfield(MOP,'frequency') && isfinite(hNom) && hNom > 0
+    try
+        if isdatetime(MOP.time), mt = MOP.time; else, mt = datetime(MOP.time,'ConvertFrom','datenum'); end
+        fr = MOP.frequency(:); fbw = MOP.fbw(:); hm = MOP.depth;
+        sp = MOP.spec1D; if size(sp,2) ~= numel(fr), sp = sp.'; end   % [nt_mop x nf]
+        ss = fr >= 0.04 & fr <= 0.25; fb = fr(ss); wb = fbw(ss); om = 2*pi*fb;
+        gg = 9.81;
+        kP = om.^2/gg; for q = 1:120, kP = om.^2./(gg*tanh(kP*hNom)); end
+        kM = om.^2/gg; for q = 1:120, kM = om.^2./(gg*tanh(kM*hm));   end
+        cgP = 0.5*(1 + 2*kP*hNom./sinh(2*kP*hNom)).*(om./kP);
+        cgM = 0.5*(1 + 2*kM*hm  ./sinh(2*kM*hm)  ).*(om./kM);
+        Tf = (om./sinh(kP*hNom)).^2;     % near-bed velocity transfer at instrument depth
+        shoal = cgM./cgP;                % S_inst(f) = S_mop(f) * Cg_mop/Cg_inst
+        ubMop = nan(numel(mt),1);
+        for it = 1:numel(mt)
+            Spuv = sp(it,ss).' .* shoal;
+            ubMop(it) = sqrt(sum(Tf .* Spuv .* wb, 'omitnan'));
+        end
+        L4.mop_Ub = interp1(mt, ubMop, C.time, 'linear', NaN);
+    catch ME
+        fprintf('  MOP Ub model failed: %s\n', ME.message);
+    end
+end
+
+% Per-site calibration (measured = calib * model) over the PUV overlap, then blend
+L4.Ub_combined = L4.Ub;
+L4.Ub_source   = strings(nBursts, 1);
+L4.Ub_source(L4.puv_valid & isfinite(L4.Ub)) = "PUV";
+ovU = L4.puv_valid & isfinite(L4.Ub) & isfinite(L4.mop_Ub) & L4.mop_Ub > 0;
+calib = 1;
+if nnz(ovU) >= 30, calib = sum(L4.mop_Ub(ovU).*L4.Ub(ovU)) / sum(L4.mop_Ub(ovU).^2); end
+L4.Ub_calibration = calib;
+mopCal = calib * L4.mop_Ub;
+gapU = isnan(L4.Ub_combined) & isfinite(mopCal);
+L4.Ub_combined(gapU) = mopCal(gapU);
+L4.Ub_source(gapU)   = "MOP";
+
+% Continuous tau_b / shields from Ub_combined (Soulsby 1997 rough-turbulent f_w)
+rho = 1025; rhos = 2650; gg = 9.81; D50 = 0.00025;
+try
+    if isfinite(pvuData(1).L2.params.D50), D50 = pvuData(1).L2.params.D50; end
+catch
+end
+Trep = L4.Tp;                                   % measured peak period where PUV...
+if isfield(L4,'mop_Tp'), Trep(~isfinite(Trep)) = L4.mop_Tp(~isfinite(Trep)); end  % ...MOP Tp in gaps
+Aorb = L4.Ub_combined .* Trep ./ (2*pi);        % near-bed semi-orbital excursion
+z0 = D50/12;                                    % ks = 2.5*D50, z0 = ks/30
+fw = 1.39 * (Aorb./z0).^(-0.52);                % Soulsby wave friction factor
+fw(~isfinite(fw) | Aorb <= 0) = NaN;
+L4.tau_b_combined   = 0.5 * rho * fw .* L4.Ub_combined.^2;
+L4.shields_combined = L4.tau_b_combined / ((rhos - rho)*gg*D50);
+L4.Ub_D50 = D50;
+fprintf('  Ub gap-fill: calib=%.3f, %d PUV + %d MOP = %d/%d (%.0f%%); tau_b_comb median %.2f Pa\n', ...
+    calib, sum(L4.Ub_source=="PUV"), sum(L4.Ub_source=="MOP"), sum(L4.Ub_source~=""), nBursts, ...
+    100*sum(L4.Ub_source~="")/nBursts, median(L4.tau_b_combined,'omitnan'));
+
 % Summary
 nStorm = sum(L4.storm_flag & L4.puv_valid);
 fprintf('  L4 complete: %d bursts, %d with PUV (%.0f%%), %d during storms\n', ...
