@@ -402,7 +402,12 @@ gapU = isnan(L4.Ub_combined) & isfinite(mopCal);
 L4.Ub_combined(gapU) = mopCal(gapU);
 L4.Ub_source(gapU)   = "MOP";
 
-% Continuous tau_b / shields from Ub_combined (Soulsby 1997 rough-turbulent f_w)
+% Continuous tau_b / shields from Ub_combined. Use the SAME canonical Swart
+% (1974) friction factor as the PUV pipeline (PUV_Pipeline/shared/bed_stress.m,
+% ks = 10*D50, piecewise smooth/transitional/rough) so tau_b_combined matches
+% the measured L4.tau_b at PUV bursts and is consistent with Paper 1's actual
+% computation. (NB: Paper 1's manuscript prints a different f_w eq and
+% ks = 2.5*D50 -- those are prose errors vs the code; flagged for correction.)
 rho = 1025; rhos = 2650; gg = 9.81; D50 = 0.00025;
 try
     if isfinite(pvuData(1).L2.params.D50), D50 = pvuData(1).L2.params.D50; end
@@ -410,11 +415,11 @@ catch
 end
 Trep = L4.Tp;                                   % measured peak period where PUV...
 if isfield(L4,'mop_Tp'), Trep(~isfinite(Trep)) = L4.mop_Tp(~isfinite(Trep)); end  % ...MOP Tp in gaps
-Aorb = L4.Ub_combined .* Trep ./ (2*pi);        % near-bed semi-orbital excursion
-z0 = D50/12;                                    % ks = 2.5*D50, z0 = ks/30
-fw = 1.39 * (Aorb./z0).^(-0.52);                % Soulsby wave friction factor
-fw(~isfinite(fw) | Aorb <= 0) = NaN;
-L4.tau_b_combined   = 0.5 * rho * fw .* L4.Ub_combined.^2;
+if exist('bed_stress','file') ~= 2
+    error('build_L4_site:noBedStress', ...
+        'bed_stress.m (PUV_Pipeline/shared) must be on the path for tau_b_combined.');
+end
+[L4.tau_b_combined, ~, L4.Aw_combined] = bed_stress(L4.Ub_combined, Trep, D50, rho);
 L4.shields_combined = L4.tau_b_combined / ((rhos - rho)*gg*D50);
 L4.Ub_D50 = D50;
 fprintf('  Ub gap-fill: calib=%.3f, %d PUV + %d MOP = %d/%d (%.0f%%); tau_b_comb median %.2f Pa\n', ...

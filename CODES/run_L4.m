@@ -13,6 +13,7 @@ addpath(codeDir);
 addpath(fullfile(codeDir, '..', 'config'));
 addpath('/Users/holden/Documents/Scripps/Research/toolbox');
 addpath('/Users/holden/Documents/Scripps/Research/Beach_Change_Observation/mop');
+addpath('/Users/holden/Documents/Scripps/Research/PUV_Pipeline/shared');  % bed_stress.m (canonical Swart f_w)
 
 L3root = fullfile(codeDir, '..', 'outputs', 'all');
 pvuRoot = '/Users/holden/Documents/Scripps/Research/PUV_Pipeline/outputs';
