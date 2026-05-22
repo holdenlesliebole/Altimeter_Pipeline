@@ -189,8 +189,14 @@ Not blocking the main fix. The science-critical Torrey/Solana data
 
 `verify_issue001.m` cross-correlates every reprocessed instrument temperature
 against the co-located PUV and writes `outputs/ISSUE001_verification_report.txt`.
-Final result: **28 PASS, 0 FAIL, 21 weak/no-PUV.** Every deployment with a
-verifiable PUV temperature signal reads UTC at lag 0 across all three sites.
+Result after the Torrey/Solana reprocess: **28 PASS, 0 FAIL, 21 weak/no-PUV.**
+After the SIO echosounder reprocess (2026-05-21, 23/23 deployments, 0 fail):
+**30 PASS, 0 FAIL, 31 weak/no-PUV** — the two SIO echosounders with PUV overlap
+(`MOP511_6m_20240402`, `20240423`) verify at lag 0 (r=0.90, 0.93), empirically
+confirming the `#TimeUTC`-direct read. SIO L1 files now contain echosounder
+data (e.g. `20240402`: 3.19M records, 272 depths) — closing the prior gap where
+0 of 23 SIO L1 files had any echo data. Every deployment with a verifiable PUV
+temperature signal reads UTC at lag 0 across all three sites.
 
 Two failures surfaced during verification and were both resolved:
 - **`MOP654_0m_20240119` (lag +8)** — a stale orphan from the pre-fix run
