@@ -44,10 +44,12 @@ L4_SIO = build_L4_site(L3root, pvuRoot, 'SouthSIOPier', ...
 tp_depths = struct();
 tp_depths(1).depth = 5;  tp_depths(1).label = "MOP586_5m";
 tp_depths(1).lat = 32.93056; tp_depths(1).lon = -117.26319;
-tp_depths(2).depth = 10; tp_depths(2).label = "MOP586_10m";
-tp_depths(2).lat = 32.93035; tp_depths(2).lon = -117.26572;
-tp_depths(3).depth = 15; tp_depths(3).label = "MOP586_15m";
-tp_depths(3).lat = 32.93005; tp_depths(3).lon = -117.26950;
+tp_depths(2).depth = 7;  tp_depths(2).label = "MOP586_7m";
+tp_depths(2).lat = 32.93048; tp_depths(2).lon = -117.26420;
+tp_depths(3).depth = 10; tp_depths(3).label = "MOP586_10m";
+tp_depths(3).lat = 32.93035; tp_depths(3).lon = -117.26572;
+tp_depths(4).depth = 15; tp_depths(4).label = "MOP586_15m";
+tp_depths(4).lat = 32.93005; tp_depths(4).lon = -117.26950;
 
 for d = 1:numel(tp_depths)
     fprintf('\n========================================\n');
@@ -103,6 +105,9 @@ if exist('L4_SIO', 'var') && L4_SIO.nMatched > 0
 end
 if exist('L4_TP5', 'var') && L4_TP5.nMatched > 0
     plotL4(L4_TP5, 'Torrey Pines 5m', 'L4_TP_5m');
+end
+if exist('L4_TP7', 'var') && L4_TP7.nMatched > 0
+    plotL4(L4_TP7, 'Torrey Pines 7m', 'L4_TP_7m');
 end
 if exist('L4_TP10', 'var') && L4_TP10.nMatched > 0
     plotL4(L4_TP10, 'Torrey Pines 10m', 'L4_TP_10m');

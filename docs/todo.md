@@ -6,6 +6,7 @@
 - [x] **Make L3 purely burst-averaged** — DONE. L3 now saves only `BA_alt`, `BA_echo`, and `dep` metadata. No full-resolution TTa/Eall (those are in L2).
 - [x] **Add deployment metadata to L1** — DONE. `dep` struct saved in L1 .mat alongside raw data for provenance.
 - [ ] **SIO echosounder .log reader optimization** — `read_echosounder_log.m` takes hours on 4-5 GB text files. Low priority since SIO altimeter data is the primary bed level measurement.
+- [ ] **(PUV pipeline, later — not urgent) Re-emit PUV L2 timestamps on the top of the hour (HH:00)** for exact comparison/joins with MOP hindcast (also hourly on the hour). Audited 2026-05-22: every PUV L2 across all 24 deployments/sites/years is at **`HH:29:59` hourly** — a consistent burst-center convention; the intended top-of-hour trim never took effect. Currently handled downstream (L4 interpolates MOP→burst times, and the PUV↔altimeter match tolerance was raised 5→15 min to span the ~10-min center offset), so this is **cosmetic, not a correctness fix** — no L4 re-run depends on it. When done, the L4 `matchTolerance_min` could be tightened back toward ~5 min. Lives in the PUV_Pipeline repo (re-run all deployments).
 
 ## QC refinements
 

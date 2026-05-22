@@ -13,7 +13,13 @@ function L4 = build_L4_site(L3root, pvuRoot, siteName, opts)
 %   depths           : vector of depths to include (default: all)
 %   pvuDeployments   : cell array of PUV deployment names to search
 %   pvuLabel         : PUV instrument label (e.g. 'SIO_6m', 'MOP586_5m')
-%   matchTolerance_min : max time offset (default 5)
+%   matchTolerance_min : max altimeter-burst-to-PUV time offset (default 15).
+%                        PUV is hourly (burst center ~HH:29); altimeter burst
+%                        centers are ~30-min and offset ~10 min from the PUV
+%                        centers, so a 5-min tolerance matched ~nothing (0% at
+%                        TP 5m). 15 min is below the 30-min PUV cadence and
+%                        above the ~10-min center offset — matches the nearest
+%                        altimeter burst to each PUV hour.
 %   anchorMethod     : "survey" or "sequential" for chaining (default "sequential")
 %   instrumentLat    : for survey anchoring
 %   instrumentLon    : for survey anchoring
@@ -27,7 +33,7 @@ arguments
     opts.depths (1,:) double = []
     opts.pvuDeployments cell = {}
     opts.pvuLabel (1,1) string = ""
-    opts.matchTolerance_min (1,1) double = 5
+    opts.matchTolerance_min (1,1) double = 15
     opts.anchorMethod (1,1) string = "sequential"
     opts.instrumentLat (1,1) double = NaN
     opts.instrumentLon (1,1) double = NaN
