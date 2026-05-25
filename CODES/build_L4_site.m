@@ -402,26 +402,38 @@ gapU = isnan(L4.Ub_combined) & isfinite(mopCal);
 L4.Ub_combined(gapU) = mopCal(gapU);
 L4.Ub_source(gapU)   = "MOP";
 
-% Continuous tau_b / shields from Ub_combined. Use the SAME canonical Swart
-% (1974) friction factor as the PUV pipeline (PUV_Pipeline/shared/bed_stress.m,
-% ks = 10*D50, piecewise smooth/transitional/rough) so tau_b_combined matches
-% the measured L4.tau_b at PUV bursts and is consistent with Paper 1's actual
-% computation. (NB: Paper 1's manuscript prints a different f_w eq and
-% ks = 2.5*D50 -- those are prose errors vs the code; flagged for correction.)
-rho = 1025; rhos = 2650; gg = 9.81; D50 = 0.00025;
+% Continuous tau_b / shields from Ub_combined. Uses Swart (1974) piecewise
+% f_w via PUV_Pipeline/shared/bed_stress_ks with the per-site Nikuradse
+% roughness ks = 2.5*D84 (Wiberg & Smith 1991; from site_grain_size.m's
+% measured PSD where available, log-linear depth extrapolation otherwise).
+% D50 (also from site_grain_size) is used for Shields normalization. This is
+% the data-anchored methodology adopted 2026-05-23 (Paper 2 audit). At PUV
+% bursts, L4.tau_b (copied from L2) matches L4.tau_b_combined ONLY after the
+% L2 spectral processing is recomputed with the same per-site ks (see
+% /tmp/p2_recompute_L2_with_ks.m run 2026-05-23 + .bak_fw_d84 backups).
+rho = 1025; rhos = 2650; gg = 9.81;
+D50 = 0.00025; D84 = NaN; ks_m = NaN; gs_status = 'no_lookup';
 try
-    if isfinite(pvuData(1).L2.params.D50), D50 = pvuData(1).L2.params.D50; end
-catch
+    gs = site_grain_size(char(opts.pvuLabel));
+    D50 = gs.D50; D84 = gs.D84; ks_m = 2.5*D84; gs_status = char(gs.status);
+catch ME
+    warning('build_L4_site:noGrainSize', ...
+        'No site_grain_size entry for "%s": %s. Falling back to ks=10*D50 with D50=%.0f um.', ...
+        char(opts.pvuLabel), ME.message, D50*1e6);
+    ks_m = 10*D50;
 end
 Trep = L4.Tp;                                   % measured peak period where PUV...
 if isfield(L4,'mop_Tp'), Trep(~isfinite(Trep)) = L4.mop_Tp(~isfinite(Trep)); end  % ...MOP Tp in gaps
-if exist('bed_stress','file') ~= 2
+if exist('bed_stress_ks','file') ~= 2
     error('build_L4_site:noBedStress', ...
-        'bed_stress.m (PUV_Pipeline/shared) must be on the path for tau_b_combined.');
+        'bed_stress_ks.m (PUV_Pipeline/shared) must be on the path for tau_b_combined.');
 end
-[L4.tau_b_combined, ~, L4.Aw_combined] = bed_stress(L4.Ub_combined, Trep, D50, rho);
+[L4.tau_b_combined, ~, L4.Aw_combined] = bed_stress_ks(L4.Ub_combined, Trep, ks_m, rho);
 L4.shields_combined = L4.tau_b_combined / ((rhos - rho)*gg*D50);
-L4.Ub_D50 = D50;
+L4.Ub_D50  = D50;
+L4.Ub_D84  = D84;
+L4.Ub_ks_m = ks_m;
+L4.grain_size_status = string(gs_status);
 fprintf('  Ub gap-fill: calib=%.3f, %d PUV + %d MOP = %d/%d (%.0f%%); tau_b_comb median %.2f Pa\n', ...
     calib, sum(L4.Ub_source=="PUV"), sum(L4.Ub_source=="MOP"), sum(L4.Ub_source~=""), nBursts, ...
     100*sum(L4.Ub_source~="")/nBursts, median(L4.tau_b_combined,'omitnan'));
