@@ -158,6 +158,25 @@ for k = 1:nBursts
     end
 end
 
+% Per-burst PUV QC provenance (channel decoupling). A FAIL (qc_flag==4) segment must not
+% contribute to any L4 field; a recovered/rescaled (qc_flag==3) segment may, but its flag
+% travels so downstream can filter to clean-only (qc_flag==1). Backward-compatible with old
+% L2 via l4_puv_qc: without these fields, everything reads as good and the historical L4 is
+% reproduced exactly.
+matchQC      = 2 * ones(nBursts, 1);   % default 2 = no match / not evaluated
+matchSegVvel = false(nBursts, 1);
+matchSegVp   = false(nBursts, 1);
+matchUse     = false(nBursts, 1);      % may this match contribute to L4 fields?
+for k = 1:nBursts
+    if ~isnan(matchPvuIdx(k))
+        q = l4_puv_qc(pvuData(matchPvuIdx(k)).L2, matchSegIdx(k));
+        matchQC(k)      = q.qc_flag;
+        matchSegVvel(k) = q.segValid_vel;
+        matchSegVp(k)   = q.segValid_p;
+        matchUse(k)     = q.use;
+    end
+end
+
 nMatched = sum(~isnan(matchPvuIdx));
 fprintf('  Matched: %d/%d bursts (%.0f%%), median dt=%.1f min\n', ...
     nMatched, nBursts, 100*nMatched/nBursts, median(matchDt(~isnan(matchDt))));
@@ -177,7 +196,7 @@ L4.deploymentID    = C.deploymentID;
     function vals = getL2(fieldName)
         vals = nan(nBursts, 1);
         for i = 1:nBursts
-            if ~isnan(matchPvuIdx(i))
+            if matchUse(i)     % skip FAIL (qc_flag==4) segments; old L2 => always true
                 vals(i) = pvuData(matchPvuIdx(i)).L2.(fieldName)(matchSegIdx(i));
             end
         end
@@ -186,7 +205,7 @@ L4.deploymentID    = C.deploymentID;
     function vals = getL2sub(structName, fieldName)
         vals = nan(nBursts, 1);
         for i = 1:nBursts
-            if ~isnan(matchPvuIdx(i))
+            if matchUse(i)
                 vals(i) = pvuData(matchPvuIdx(i)).L2.(structName).(fieldName)(matchSegIdx(i));
             end
         end
@@ -195,7 +214,7 @@ L4.deploymentID    = C.deploymentID;
     function vals = getL3(fieldName)
         vals = nan(nBursts, 1);
         for i = 1:nBursts
-            if ~isnan(matchPvuIdx(i)) && ~isempty(pvuData(matchPvuIdx(i)).L3)
+            if matchUse(i) && ~isempty(pvuData(matchPvuIdx(i)).L3)
                 vals(i) = pvuData(matchPvuIdx(i)).L3.(fieldName)(matchSegIdx(i));
             end
         end
@@ -204,7 +223,7 @@ L4.deploymentID    = C.deploymentID;
     function vals = getL3sub(structName, fieldName)
         vals = nan(nBursts, 1);
         for i = 1:nBursts
-            if ~isnan(matchPvuIdx(i)) && ~isempty(pvuData(matchPvuIdx(i)).L3)
+            if matchUse(i) && ~isempty(pvuData(matchPvuIdx(i)).L3)
                 try
                     vals(i) = pvuData(matchPvuIdx(i)).L3.(structName).(fieldName)(matchSegIdx(i));
                 catch
@@ -233,7 +252,7 @@ L4.shields  = getL3('shields');
 
 L4.mobilized = false(nBursts, 1);
 for i = 1:nBursts
-    if ~isnan(matchPvuIdx(i)) && ~isempty(pvuData(matchPvuIdx(i)).L3)
+    if matchUse(i) && ~isempty(pvuData(matchPvuIdx(i)).L3)
         try
             L4.mobilized(i) = pvuData(matchPvuIdx(i)).L3.mobilized(matchSegIdx(i));
         catch
@@ -280,7 +299,24 @@ end
 
 % Quality
 L4.puv_match_min = matchDt;
-L4.puv_valid     = ~isnan(matchPvuIdx);
+L4.puv_valid     = ~isnan(matchPvuIdx);   % a PUV segment matched in time (unchanged meaning)
+
+% PUV QC provenance per burst (channel decoupling). On old L2 these are all "good" and
+% reproduce the historical L4. On rerun L2:
+%   puv_qc_flag = 1 clean, 3 recovered/rescaled (suspect -- e.g. velocity moments from a
+%     segment whose pressure sensor had died), 4 fail (dropped from every L4 field above),
+%     2 not evaluated / no match.
+%   Consumers wanting CLEAN-ONLY forcing filter on puv_qc_flag == 1. Storm-peak velocity
+%     moments recovered from sensor-block failures carry puv_qc_flag == 3 & puv_segValid_vel.
+L4.puv_qc_flag      = matchQC;
+L4.puv_segValid_vel = matchSegVvel;
+L4.puv_segValid_p   = matchSegVp;
+if any(matchQC == 4)
+    fprintf('  PUV QC: %d matched bursts dropped as qc_flag=4 (implausible pressure)\n', sum(matchQC==4));
+end
+if any(matchQC == 3)
+    fprintf('  PUV QC: %d matched bursts are qc_flag=3 (recovered/rescaled; filter to ==1 for clean-only)\n', sum(matchQC==3));
+end
 
 iqr99 = prctile(C.bedlevel_iqr_mm(~isnan(C.bedlevel_iqr_mm)), 99);
 if iqr99 > 0
