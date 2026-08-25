@@ -1,5 +1,23 @@
 # Altimeter & Echosounder Processing Pipeline
 
+## Where the processed products live
+
+`outputs/` is gitignored (12 GB), so the repo carries code only. A mirror of the processed
+products is on reefbreak at:
+
+    /Volumes/group/Altimeter_data/Processed_HLB/
+
+with `L1_L2_L3/`, `L4/`, `provenance/` (pre-rebuild L4 snapshots), `diagnostics/`, a `README.md`
+and `MANIFEST.sha256`. First published 2026-08-24 from commit `bed28a7`. The raw `.log` / `.dat`
+files in the parent `Altimeter_data/` directories remain the source of record; the mirror is a
+cache of a reproducible computation, not a substitute.
+
+**Before trusting `L4.tau_b_combined` or `L4.shields_combined`, run
+`CODES/check_L4_grainsize_current.m`.** Grain size is resolved at BUILD time from
+`PUV_Pipeline/shared/site_grain_size.m` and stamped into the L4; nothing forces a rebuild when
+that table changes, and it has changed silently before (see `docs/audit.md` and commit `bed28a7`).
+
+
 Processing pipeline for subaqueous bed-level instruments deployed on the inner shelf at three sites in San Diego County. These instruments measure changes in sand bed elevation in response to wave forcing, providing a direct record of erosion and accretion at the deployment location.
 
 Most altimeter/echosounder deployments were done simultaneously with PUV (pressure-velocity) wave instruments, giving a paired dataset of wave forcing (from PUVs) and immediate bed-level + sediment suspension response (from altimeters/echosounders).
