@@ -41,6 +41,8 @@ arguments
     opts.mopNumber (1,1) double = NaN    % override auto-detected MOP for surveys
     opts.mopStation (1,1) string = ""    % CDIP station code for MOP wave data (e.g. "D0511")
     opts.savePath (1,1) string = ""
+    opts.grainSizeLabel (1,1) string = ""      % site_grain_size key; defaults to pvuLabel
+    opts.requireGrainSize (1,1) logical = true   % error if site_grain_size has no entry
 end
 
 fprintf('\n=== Building L4 for %s ===\n', siteName);
@@ -449,13 +451,29 @@ L4.Ub_source(gapU)   = "MOP";
 % /tmp/p2_recompute_L2_with_ks.m run 2026-05-23 + .bak_fw_d84 backups).
 rho = 1025; rhos = 2650; gg = 9.81;
 D50 = 0.00025; D84 = NaN; ks_m = NaN; gs_status = 'no_lookup';
+% pvuLabel names the PUV L2/L3 FILE ("SIO_6m"); the grain-size table is keyed on
+% SITE ("MOP511_6m"). They are different namespaces and coincide at Torrey only by
+% accident. Overloading one parameter for both is what hid the SIO fallback.
+gsLabel = opts.grainSizeLabel; if gsLabel == "", gsLabel = opts.pvuLabel; end
 try
-    gs = site_grain_size(char(opts.pvuLabel));
+    gs = site_grain_size(char(gsLabel));
     D50 = gs.D50; D84 = gs.D84; ks_m = 2.5*D84; gs_status = char(gs.status);
 catch ME
+    % HARDENED 2026-08-24. This used to fall back to ks = 10*D50 with a default
+    % D50, which is a DIFFERENT roughness formulation, not a degraded version of
+    % the right one. It ran undetected at SIO for months because the pvuLabel
+    % ("SIO_6m") did not match the table key ("MOP511_6m"). A build that cannot
+    % resolve its grain size should stop, not guess.
+    if opts.requireGrainSize
+        error('build_L4_site:noGrainSize', ...
+            ['No site_grain_size entry for "%s": %s\n' ...
+             'Add the site to PUV_Pipeline/shared/site_grain_size.m, or pass ' ...
+             'requireGrainSize=false to accept the ks=10*D50 fallback knowingly.'], ...
+            char(gsLabel), ME.message);
+    end
     warning('build_L4_site:noGrainSize', ...
         'No site_grain_size entry for "%s": %s. Falling back to ks=10*D50 with D50=%.0f um.', ...
-        char(opts.pvuLabel), ME.message, D50*1e6);
+        char(gsLabel), ME.message, D50*1e6);
     ks_m = 10*D50;
 end
 Trep = L4.Tp;                                   % measured peak period where PUV...

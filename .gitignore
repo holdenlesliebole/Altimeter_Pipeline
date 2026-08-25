@@ -11,3 +11,12 @@ raw_cache/
 
 # Mac system files
 .DS_Store
+
+# LaTeX build artifacts from docs/
+docs/*.aux
+docs/*.log
+docs/*.nav
+docs/*.out
+docs/*.snm
+docs/*.toc
+docs/*.pdf
