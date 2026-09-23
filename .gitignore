@@ -20,3 +20,6 @@ docs/*.out
 docs/*.snm
 docs/*.toc
 docs/*.pdf
+
+# real directory lives in ~/LocalData (outside iCloud sync); this path is a symlink
+outputs
