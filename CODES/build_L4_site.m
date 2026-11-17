@@ -289,19 +289,25 @@ L4.frac_sea   = getL3('frac_sea');
 L4.Ef_swell   = L4.Ef .* L4.frac_swell;
 L4.Ef_sea     = L4.Ef .* L4.frac_sea;
 
-% Storm flag
+% Storm flag: true inside any PUV L3 storm event (PUV_L3_storms).
+% L3.events is a struct ARRAY (one element per event, fields start/end_time,
+% UTC datetimes). Until 2026-11-17 this block indexed it as a struct of arrays
+% (L3.events.start(e)), which errors for any count of events other than one;
+% a bare try/catch swallowed the error, so storm_flag was false at every site.
+% C.time is time-zone-naive UTC (as L2.time is made above), so event times are
+% converted to naive UTC before comparing.
 L4.storm_flag = false(nBursts, 1);
+L4.storm_flag_nEvents = 0;
 for p = 1:nPvuLoaded
-    if isempty(pvuData(p).L3), continue; end
-    try
-        if ~isempty(pvuData(p).L3.events.start)
-            for e = 1:numel(pvuData(p).L3.events.start)
-                inStorm = C.time >= pvuData(p).L3.events.start(e) & ...
-                          C.time <= pvuData(p).L3.events.end_time(e);
-                L4.storm_flag(inStorm) = true;
-            end
-        end
-    catch
+    if isempty(pvuData(p).L3) || ~isfield(pvuData(p).L3, 'events'), continue; end
+    ev = pvuData(p).L3.events;
+    for e = 1:numel(ev)
+        t0 = ev(e).start;  t1 = ev(e).end_time;
+        if ~isempty(t0.TimeZone), t0.TimeZone = 'UTC'; t0.TimeZone = ''; end
+        if ~isempty(t1.TimeZone), t1.TimeZone = 'UTC'; t1.TimeZone = ''; end
+        inStorm = C.time >= t0 & C.time <= t1;
+        L4.storm_flag(inStorm) = true;
+        L4.storm_flag_nEvents = L4.storm_flag_nEvents + 1;
     end
 end
 

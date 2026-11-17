@@ -17,16 +17,28 @@ cache of a reproducible computation, not a substitute.
 `PUV_Pipeline/shared/site_grain_size.m` and stamped into the L4; nothing forces a rebuild when
 that table changes, and it has changed silently before (see `docs/audit.md` and commit `bed28a7`).
 
-**L4 rebuilt locally 2026-11-16; the reefbreak copy is still the stale 2026-08-24 build.** The six
-local L4 files (`L4_TP_{5,7,10,15}m`, `L4_SIO_6m`, `L4_SOL_7m`) were rebuilt with `run_L4.m` from the
-PUV_Pipeline beam-step rebuild of all 66 PUV records (L1 beam-step correction, T_b, Swart; see
-`PUV_Pipeline_beamstep/docs/SPEC_L1_beam_step_correction_2026-11-13.md` sec. 12). The August build
-was stale against PUV L2 (`docs/DIAGNOSIS_L4_stale_PUV_L2_2026-11-13.md`). Each L4 now stamps the PUV
-L2 and L3 it read (`L4.prov_parents`: path, build_id, file_sha256). **Before trusting an L4, run
-`CODES/check_L4_parents_current.m`** beside `check_L4_grainsize_current.m`; on 2026-11-16 it reads
-42/42 parent stamps current, and its break test (`breakTest=true`) flags 1/42 STALE as it must.
-Until the push, do not use the reefbreak L4's PUV fields. Pre-rebuild hashes:
-`PUV_Pipeline_beamstep/docs/archive_snapshot_manifests/pre_beamstep_altimeter_L4_2026-11-16_manifest.csv`.
+**L4 rebuilt 2026-11-16 and pushed to reefbreak 2026-11-16 (server sha256 = local, 11/11).** The
+six L4 files (`L4_TP_{5,7,10,15}m`, `L4_SIO_6m`, `L4_SOL_7m`) were rebuilt with `run_L4.m` from the
+PUV_Pipeline beam-step rebuild of all 66 PUV records, PUV catalog 2026-11-17.1 (L1 beam-step
+correction, T_b, Swart; see `PUV_Pipeline/docs/SPEC_L1_beam_step_correction_2026-11-13.md` sec. 12).
+The August build was stale against PUV L2 (`docs/DIAGNOSIS_L4_stale_PUV_L2_2026-11-13.md`). Each L4
+now stamps the PUV L2 and L3 it read (`L4.prov_parents`: path, build_id, file_sha256). **Before
+trusting an L4, run `CODES/check_L4_parents_current.m`** beside `check_L4_grainsize_current.m`; on
+2026-11-16 it read 42/42 parent stamps current, and its break test (`breakTest=true`) flags 1/42
+STALE as it must. Pre-rebuild hashes:
+`PUV_Pipeline/docs/archive_snapshot_manifests/pre_beamstep_altimeter_L4_2026-11-16_manifest.csv`.
+
+**Known stale until the next L4 rebuild (2026-11-17):**
+- **`storm_flag` is false everywhere in the current files.** `build_L4_site.m` indexed `L3.events` (a
+  struct array) as a struct of arrays, which errors for any event count but one, and a bare
+  try/catch hid the error. Fixed in code 2026-11-17. On TP 7 m the fixed rule flags 1,443 of 23,098
+  bursts from 14 PUV events, and 464 of the 481 flagged bursts with a valid PUV have Hs > 1.5 m
+  (exploratory check, no file written). Until rebuilt, define storms from `Hs_combined`, as
+  `Paper_2/scripts/analysis/A2c_storm_event_scatter.m` already does.
+- **The PUV L2 for 12 heading-disputed records is about to change** (Paper 2's logged-heading
+  switch, PUV catalog 2026-11-17.2 or later, among them TOR24W MOP586_10m and TOR25S MOP586_15m).
+  When it publishes, `check_L4_parents_current` will report those parents STALE. Rebuild L4 then,
+  which also picks up the `storm_flag` fix; one rebuild covers both.
 
 
 Processing pipeline for subaqueous bed-level instruments deployed on the inner shelf at three sites in San Diego County. These instruments measure changes in sand bed elevation in response to wave forcing, providing a direct record of erosion and accretion at the deployment location.

@@ -153,16 +153,18 @@ else
 end
 
 % Storm flag (L3 events)
+% L3.events is a struct array (one element per event); see build_L4_site.m.
+% The old struct-of-arrays indexing errored and a bare catch hid it (fixed 2026-11-17).
 L4.storm_flag = false(nBursts, 1);
-try
-    if isfield(L3, 'events') && ~isempty(L3.events.start)
-        for e = 1:numel(L3.events.start)
-            inStorm = BA.time >= L3.events.start(e) & BA.time <= L3.events.end_time(e);
-            L4.storm_flag(inStorm) = true;
+if isfield(L3, 'events')
+    for e = 1:numel(L3.events)
+        t0 = L3.events(e).start;  t1 = L3.events(e).end_time;
+        if isempty(BA.time.TimeZone)
+            if ~isempty(t0.TimeZone), t0.TimeZone = 'UTC'; t0.TimeZone = ''; end
+            if ~isempty(t1.TimeZone), t1.TimeZone = 'UTC'; t1.TimeZone = ''; end
         end
+        L4.storm_flag(BA.time >= t0 & BA.time <= t1) = true;
     end
-catch
-    % events struct empty or incompatible — no storm flags
 end
 
 % Quality
