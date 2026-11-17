@@ -80,6 +80,8 @@ if isempty(opts.pvuDeployments)
 end
 
 nPvuLoaded = 0;
+parents = struct('dep', {}, 'L2_path', {}, 'L2_build_id', {}, 'L2_sha256', {}, ...
+                 'L3_path', {}, 'L3_build_id', {}, 'L3_sha256', {});
 for p = 1:numel(opts.pvuDeployments)
     depName = opts.pvuDeployments{p};
 
@@ -130,6 +132,10 @@ for p = 1:numel(opts.pvuDeployments)
     pvuData(nPvuLoaded).L2 = L2; %#ok
     pvuData(nPvuLoaded).L3 = L3; %#ok
     pvuData(nPvuLoaded).depName = depName; %#ok
+    % Parent provenance (2026-11-14; docs/DIAGNOSIS_L4_stale_PUV_L2_2026-11-13.md, proposed
+    % fix 2): stamp each PUV L2/L3 this L4 read, by its build_id and file_sha256 from the
+    % file's own provenance sidecar, so check_L4_parents_current.m can detect a stale L4.
+    parents(nPvuLoaded) = parent_stamp(depName, l2File, l3File); %#ok<AGROW>
 end
 
 if nPvuLoaded == 0
@@ -498,8 +504,32 @@ fprintf('  L4 complete: %d bursts, %d with PUV (%.0f%%), %d during storms\n', ..
     nBursts, nMatched, 100*nMatched/nBursts, nStorm);
 
 %% -- Save -----------------------------------------------------------------
+L4.prov_parents = parents;
+L4.builtAt = string(datetime('now', 'TimeZone', 'UTC', 'Format', 'yyyy-MM-dd''T''HH:mm:ss''Z'''));
 if opts.savePath ~= ""
     save(opts.savePath, 'L4', '-v7.3');
     fprintf('  Saved: %s\n', opts.savePath);
 end
+end
+
+function s = parent_stamp(depName, l2File, l3File)
+% build_id and file_sha256 of the PUV L2 and L3 this L4 read, from their sidecars
+% (PUV_Pipeline/shared/read_prov). Empty strings when a file or sidecar is absent;
+% check_L4_parents_current.m treats empty as STALE (cannot be verified).
+    if exist('read_prov', 'file') ~= 2
+        addpath('/Users/holden/Documents/Scripps/Research/PUV_Pipeline/shared');
+    end
+    s = struct('dep', string(depName), 'L2_path', string(l2File), 'L2_build_id', "", 'L2_sha256', "", ...
+               'L3_path', string(l3File), 'L3_build_id', "", 'L3_sha256', "");
+    [s.L2_build_id, s.L2_sha256] = one(l2File);
+    [s.L3_build_id, s.L3_sha256] = one(l3File);
+    function [b, h] = one(f)
+        b = ""; h = "";
+        if ~isfile(f), return, end
+        pv = read_prov(char(f));   % char, not string: with a string the sidecar path is
+                                   % not found and only the embedded block (no sha256) is read
+        if isempty(pv), return, end
+        if isfield(pv, 'build_id'), b = string(pv.build_id); end
+        if isfield(pv, 'file_sha256'), h = string(pv.file_sha256); end
+    end
 end

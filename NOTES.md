@@ -17,6 +17,17 @@ cache of a reproducible computation, not a substitute.
 `PUV_Pipeline/shared/site_grain_size.m` and stamped into the L4; nothing forces a rebuild when
 that table changes, and it has changed silently before (see `docs/audit.md` and commit `bed28a7`).
 
+**L4 rebuilt locally 2026-11-16; the reefbreak copy is still the stale 2026-08-24 build.** The six
+local L4 files (`L4_TP_{5,7,10,15}m`, `L4_SIO_6m`, `L4_SOL_7m`) were rebuilt with `run_L4.m` from the
+PUV_Pipeline beam-step rebuild of all 66 PUV records (L1 beam-step correction, T_b, Swart; see
+`PUV_Pipeline_beamstep/docs/SPEC_L1_beam_step_correction_2026-11-13.md` sec. 12). The August build
+was stale against PUV L2 (`docs/DIAGNOSIS_L4_stale_PUV_L2_2026-11-13.md`). Each L4 now stamps the PUV
+L2 and L3 it read (`L4.prov_parents`: path, build_id, file_sha256). **Before trusting an L4, run
+`CODES/check_L4_parents_current.m`** beside `check_L4_grainsize_current.m`; on 2026-11-16 it reads
+42/42 parent stamps current, and its break test (`breakTest=true`) flags 1/42 STALE as it must.
+Until the push, do not use the reefbreak L4's PUV fields. Pre-rebuild hashes:
+`PUV_Pipeline_beamstep/docs/archive_snapshot_manifests/pre_beamstep_altimeter_L4_2026-11-16_manifest.csv`.
+
 
 Processing pipeline for subaqueous bed-level instruments deployed on the inner shelf at three sites in San Diego County. These instruments measure changes in sand bed elevation in response to wave forcing, providing a direct record of erosion and accretion at the deployment location.
 
