@@ -29,7 +29,7 @@ STALE as it must. Pre-rebuild hashes:
 `PUV_Pipeline/docs/archive_snapshot_manifests/pre_beamstep_altimeter_L4_2026-11-16_manifest.csv`.
 
 **L4 rebuilt again 2026-11-18 and pushed to reefbreak 2026-11-18 (server sha256 = manifest,
-11/11: six L4 files and five diagnostic figures).** Built on PUV catalog 2026-11-17.2, which switched
+11/11: six L4 files and five diagnostic figures).** Built on PUV catalog 2026-11-18.1, which switched
 12 PUV records to the diver-logged mount heading (`PUV_Pipeline/docs/catalog_changes/
 2026-11-18_logged_headings.md`); three of them feed L4 (SIO25E -> `L4_SIO_6m`, TOR24W -> `L4_TP_10m`,
 TOR25S -> `L4_TP_15m`). Before the rebuild `check_L4_parents_current` read 36/42 current, the six
