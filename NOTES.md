@@ -28,17 +28,28 @@ trusting an L4, run `CODES/check_L4_parents_current.m`** beside `check_L4_grains
 STALE as it must. Pre-rebuild hashes:
 `PUV_Pipeline/docs/archive_snapshot_manifests/pre_beamstep_altimeter_L4_2026-11-16_manifest.csv`.
 
-**Known stale until the next L4 rebuild (2026-11-17):**
-- **`storm_flag` is false everywhere in the current files.** `build_L4_site.m` indexed `L3.events` (a
-  struct array) as a struct of arrays, which errors for any event count but one, and a bare
-  try/catch hid the error. Fixed in code 2026-11-17. On TP 7 m the fixed rule flags 1,443 of 23,098
-  bursts from 14 PUV events, and 464 of the 481 flagged bursts with a valid PUV have Hs > 1.5 m
-  (exploratory check, no file written). Until rebuilt, define storms from `Hs_combined`, as
-  `Paper_2/scripts/analysis/A2c_storm_event_scatter.m` already does.
-- **The PUV L2 for 12 heading-disputed records is about to change** (Paper 2's logged-heading
-  switch, PUV catalog 2026-11-17.2 or later, among them TOR24W MOP586_10m and TOR25S MOP586_15m).
-  When it publishes, `check_L4_parents_current` will report those parents STALE. Rebuild L4 then,
-  which also picks up the `storm_flag` fix; one rebuild covers both.
+**L4 rebuilt again 2026-11-18 and pushed to reefbreak 2026-11-18 (server sha256 = manifest,
+11/11: six L4 files and five diagnostic figures).** Built on PUV catalog 2026-11-17.2, which switched
+12 PUV records to the diver-logged mount heading (`PUV_Pipeline/docs/catalog_changes/
+2026-11-18_logged_headings.md`); three of them feed L4 (SIO25E -> `L4_SIO_6m`, TOR24W -> `L4_TP_10m`,
+TOR25S -> `L4_TP_15m`). Before the rebuild `check_L4_parents_current` read 36/42 current, the six
+stale stamps being exactly those three records' L2 and L3; after it, 42/42, break test 41/42;
+grain size current at 6/6. Changes against the 2026-11-16 files:
+- `storm_flag` now set (it was false everywhere; fix 3f46686): SIO 6 m 289 of 33,846 bursts, SOL 7 m
+  1,442 of 24,697, TP 5 m 873 of 32,486, TP 7 m 1,443 of 23,098, TP 10 m 1,610 of 25,696, TP 15 m
+  1,578 of 24,092. New field `storm_flag_nEvents`.
+- At SIO 6 m, TP 10 m and TP 15 m the direction-dependent PUV fields moved with the heading:
+  `meanDir` by up to 11.3, 12.4 and 11.9 deg; `uMean`, `vMean`, `subtidal_u` by up to 0.057 m/s;
+  `skewness`, `asymmetry`, `u_abs3`, `u_uabs2`. Ub, Aw, TKE, tau_b and Shields changed only at
+  rounding (below 3e-15).
+- **TP 5 m: the 2026-11-16 file had no MOP gap-fill.** `mop_Hs`, `mop_Tp` and `mop_Ub` were NaN at
+  all 32,486 bursts, so `Hs_combined`, `Ub_combined`, `tau_b_combined` and `shields_combined`
+  existed only at the 6,307 PUV-matched bursts (19%), and `Ub_calibration` was 1 instead of 1.065.
+  The cause was not found (the MOP read failed without an error in that build; the other five
+  files were filled). The 2026-11-18 file is filled at 32,486/32,486. Anything computed from
+  `L4_TP_5m` combined fields between 2026-11-16 and 2026-11-18 saw only PUV-matched bursts.
+Pre-rebuild hashes:
+`PUV_Pipeline/docs/archive_snapshot_manifests/pre_heading_altimeter_L4_2026-11-18_manifest.csv`.
 
 
 Processing pipeline for subaqueous bed-level instruments deployed on the inner shelf at three sites in San Diego County. These instruments measure changes in sand bed elevation in response to wave forcing, providing a direct record of erosion and accretion at the deployment location.
