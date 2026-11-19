@@ -28,6 +28,13 @@ trusting an L4, run `CODES/check_L4_parents_current.m`** beside `check_L4_grains
 STALE as it must. Pre-rebuild hashes:
 `PUV_Pipeline/docs/archive_snapshot_manifests/pre_beamstep_altimeter_L4_2026-11-16_manifest.csv`.
 
+**L4 rebuilt 2026-11-19 (local only, NOT pushed).** After PUV_Pipeline moved the TOR23W MOP586_10m velocity
+cutoff to 2023-12-30 03:00 UTC (`PUV_Pipeline/docs/catalog_changes/2026-11-19_tor23w_10m_velocity_cutoff.md`).
+`check_L4_parents_current` 42/42; grain size current 6/6; `Hs_combined` coverage 6/6 files at 100%. **Two earlier
+builds that day silently lost the MOP gap-fill when CDIP THREDDS returned 504** (`L4_SOL_7m` 40%, then
+`L4_TP_15m` 26%): the build prints "MOP loading failed" and continues. Neither staleness check catches it. Check
+`mean(isfinite(L4.Hs_combined)) == 1` per file after every build until the builder fails closed.
+
 **L4 rebuilt again 2026-11-18 and pushed to reefbreak 2026-11-18 (server sha256 = manifest,
 11/11: six L4 files and five diagnostic figures).** Built on PUV catalog 2026-11-18.1, which switched
 12 PUV records to the diver-logged mount heading (`PUV_Pipeline/docs/catalog_changes/
